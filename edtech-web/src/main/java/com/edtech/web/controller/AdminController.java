@@ -36,6 +36,7 @@ public class AdminController {
     private final UserPointsMapper userPointsMapper;
     private final StudentExerciseLogMapper studentExerciseLogMapper;
     private final MistakeBookMapper mistakeBookMapper;
+    private final KnowledgePrerequisiteMapper knowledgePrerequisiteMapper;
 
     @Value("${jwt.secret:9a4f2c8d3b7a1e6f4c5d8e9a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c}")
     private String jwtSecret;
@@ -397,11 +398,33 @@ public class AdminController {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            var kps = knowledgePointMapper.selectList(null);
+            List<KnowledgePoint> kps = knowledgePointMapper.selectList(null);
             List<Map<String, Object>> data = new ArrayList<>();
-            
+
             if (kps != null && !kps.isEmpty()) {
-                for (var kp : kps) {
+                List<Long> kpIds = new ArrayList<>();
+                for (KnowledgePoint kp : kps) {
+                    if (kp.getId() != null) {
+                        kpIds.add(kp.getId());
+                    }
+                }
+
+                Map<Long, List<Long>> prereqMap = new HashMap<>();
+                if (!kpIds.isEmpty()) {
+                    List<KnowledgePrerequisite> relations = knowledgePrerequisiteMapper.selectList(
+                            new LambdaQueryWrapper<KnowledgePrerequisite>()
+                                    .in(KnowledgePrerequisite::getKnowledgePointId, kpIds));
+                    for (KnowledgePrerequisite rel : relations) {
+                        Long kpId = rel.getKnowledgePointId();
+                        Long prereqId = rel.getPrereqPointId();
+                        if (kpId == null || prereqId == null) {
+                            continue;
+                        }
+                        prereqMap.computeIfAbsent(kpId, k -> new ArrayList<>()).add(prereqId);
+                    }
+                }
+
+                for (KnowledgePoint kp : kps) {
                     Map<String, Object> item = new HashMap<>();
                     item.put("id", kp.getId());
                     item.put("name", kp.getName());
@@ -412,7 +435,8 @@ public class AdminController {
                     item.put("pTransit", kp.getPTransit() != null ? kp.getPTransit() : 0.1);
                     item.put("pGuess", kp.getPGuess() != null ? kp.getPGuess() : 0.2);
                     item.put("pSlip", kp.getPSlip() != null ? kp.getPSlip() : 0.1);
-                    item.put("prerequisites", new ArrayList<>());
+                    List<Long> prereqIds = prereqMap.getOrDefault(kp.getId(), Collections.emptyList());
+                    item.put("prerequisites", prereqIds);
                     data.add(item);
                 }
             }
@@ -436,6 +460,16 @@ public class AdminController {
         Map<String, Object> response = new HashMap<>();
         try {
             Object idObj = request.get("id");
+            List<Long> prereqIds = new ArrayList<>();
+            Object prereqObj = request.get("prerequisites");
+            if (prereqObj instanceof Collection<?>) {
+                for (Object o : (Collection<?>) prereqObj) {
+                    if (o != null) {
+                        prereqIds.add(Long.valueOf(o.toString()));
+                    }
+                }
+            }
+
             KnowledgePoint kp;
             if (idObj != null) {
                 Long id = Long.valueOf(idObj.toString());
@@ -488,6 +522,21 @@ public class AdminController {
                 knowledgePointMapper.updateById(kp);
             }
 
+            if (!prereqIds.isEmpty() || idObj != null) {
+                Long kpId = kp.getId();
+                if (kpId != null) {
+                    knowledgePrerequisiteMapper.delete(
+                            new LambdaQueryWrapper<KnowledgePrerequisite>()
+                                    .eq(KnowledgePrerequisite::getKnowledgePointId, kpId));
+                    for (Long pid : prereqIds) {
+                        KnowledgePrerequisite rel = new KnowledgePrerequisite();
+                        rel.setKnowledgePointId(kpId);
+                        rel.setPrereqPointId(pid);
+                        knowledgePrerequisiteMapper.insert(rel);
+                    }
+                }
+            }
+
             response.put("success", true);
             response.put("message", "保存成功");
         } catch (Exception e) {
@@ -505,6 +554,11 @@ public class AdminController {
     public Map<String, Object> deleteKnowledgePoint(@PathVariable Long id) {
         Map<String, Object> response = new HashMap<>();
         try {
+            knowledgePrerequisiteMapper.delete(
+                    new LambdaQueryWrapper<KnowledgePrerequisite>()
+                            .eq(KnowledgePrerequisite::getKnowledgePointId, id)
+                            .or()
+                            .eq(KnowledgePrerequisite::getPrereqPointId, id));
             int rows = knowledgePointMapper.deleteById(id);
             response.put("success", rows > 0);
             response.put("message", rows > 0 ? "删除成功" : "记录不存在");

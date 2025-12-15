@@ -11,6 +11,7 @@ com\edtech\model\entity\UserAchievement.class
 com\edtech\model\mapper\PracticeSessionMapper.class
 com\edtech\model\mapper\UserMapper.class
 com\edtech\model\mapper\StudentExerciseLogMapper.class
+com\edtech\model\entity\KnowledgePrerequisite.class
 com\edtech\model\mapper\UserSettingsMapper.class
 com\edtech\model\entity\ParentControl.class
 com\edtech\model\mapper\AchievementMapper.class

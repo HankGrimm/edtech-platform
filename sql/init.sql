@@ -79,3 +79,17 @@ CREATE TABLE IF NOT EXISTS `mistake_book` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_student_q` (`student_id`, `question_id`)
 ) ENGINE=InnoDB COMMENT='智能错题本';
+
+-- ==========================================
+-- 6. Knowledge Prerequisite (知识点前驱关系)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS `knowledge_prerequisite` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
+  `knowledge_point_id` BIGINT NOT NULL COMMENT '知识点 ID',
+  `prereq_point_id` BIGINT NOT NULL COMMENT '前驱知识点 ID',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_kp_prereq` (`knowledge_point_id`, `prereq_point_id`),
+  INDEX `idx_kp` (`knowledge_point_id`),
+  INDEX `idx_prereq` (`prereq_point_id`)
+) ENGINE=InnoDB COMMENT='知识点前驱关系表';

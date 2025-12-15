@@ -1,6 +1,7 @@
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\mapper\UserAchievementMapper.java
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\entity\KnowledgePoint.java
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\mapper\DailyGoalMapper.java
+D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\mapper\KnowledgePrerequisiteMapper.java
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\entity\UserPoints.java
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\entity\PracticeSession.java
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\mapper\UserPointsMapper.java
@@ -25,6 +26,7 @@ D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\mode
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\entity\ParentBinding.java
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\entity\StudentExerciseLog.java
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\entity\UserAchievement.java
+D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\entity\KnowledgePrerequisite.java
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\entity\ParentControl.java
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\mapper\MistakeBookMapper.java
 D:\项目合集\毕业设计\edtech-platform2\edtech-model\src\main\java\com\edtech\model\entity\Achievement.java

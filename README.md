@@ -51,6 +51,7 @@
   - **智能出题策略**: 融合高频错题重练 (40%)、薄弱击破 (30%)、艾宾浩斯复习 (15%)、进阶拓展 (10%)。
   - **纠错专项模式**: 错题后自动触发 Drill Mode，直到连续答对为止。
   - **游戏化激励**: 知识点金牌掌握特效，提升学习成就感。
+  - **知识点管理后台**: 管理端支持知识点新增 / 编辑 / 删除、BKT 参数配置及前驱关系维护，所有配置实时落库并驱动 BKT 引擎。
 
 ### 8. ☁️ 云原生与可观测性 (Cloud Native)
 - **Docker 容器化**: 提供标准 `Dockerfile` 与 `docker-compose.yml` 一键部署。
@@ -105,7 +106,7 @@ cp .env.example .env
 
 ### 2. 数据库初始化
 执行以下 SQL 脚本初始化数据库结构：
-1. `sql/init.sql` (核心业务表)
+1. `sql/init.sql` (核心业务表：知识点、知识点前驱关系、题目、知识状态、错题本)
 2. `sql/saas_upgrade.sql` (SaaS 增强表：租户、权限、订单)
 3. `sql/settings_upgrade.sql` (设置中心表：用户偏好、家长绑定) [NEW]
 4. `sql/gamification_upgrade.sql` (游戏化功能表：成就、积分、排行榜) [NEW]
@@ -145,8 +146,8 @@ edtech-platform2/
 ├── edtech-service-kt/     # [核心] BKT 算法引擎
 ├── edtech-service-ai/     # [核心] AI 内容生成服务
 ├── edtech-service-core/   # 基础设施 (MQ, Payment Strategy, Tenant Context)
-├── edtech-model/          # 实体定义 (User, Order, Tenant)
-├── edtech-frontend/       # React 前端 (含 Login, Admin Dashboard, Settings)
+├── edtech-model/          # 实体定义 (User, KnowledgePoint, KnowledgePrerequisite, Question, State 等)
+├── edtech-frontend/       # React 前端 (含学生端、管理端仪表盘、知识点管理、设置中心)
 ├── sql/                   # 数据库脚本 (init, saas, settings, gamification)
 ├── docker-compose.yml     # 容器编排
 ├── prometheus.yml         # Prometheus 监控配置
@@ -183,6 +184,12 @@ edtech-platform2/
 ### 核心学习 (Learning)
 - `GET /api/practice/random`: 获取 AI 推荐题目
 - `POST /api/ai/explain`: 生成错题智能解析
+
+### 管理后台 (Admin)
+- `POST /api/admin/login`: 管理员登录
+- `GET /api/admin/knowledge-points`: 获取知识点列表（含 BKT 参数与前驱关系）
+- `POST /api/admin/knowledge-points`: 新增 / 编辑知识点（名称、学科、描述、BKT 参数、前驱关系）
+- `DELETE /api/admin/knowledge-points/{id}`: 删除知识点（自动清理相关前驱关系）
 
 ---
 

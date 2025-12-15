@@ -146,6 +146,50 @@ export default function KnowledgeManagement() {
     setEditingKP({ ...editingKP, prerequisites: newPrereqs });
   };
 
+  const handleSavePrereq = async () => {
+    if (!editingKP) {
+      setShowPrereqModal(false);
+      return;
+    }
+    try {
+      const payload: Partial<KnowledgePoint> = {
+        id: editingKP.id,
+        name: editingKP.name,
+        subject: editingKP.subject,
+        description: editingKP.description,
+        pInit: editingKP.pInit,
+        pTransit: editingKP.pTransit,
+        pGuess: editingKP.pGuess,
+        pSlip: editingKP.pSlip,
+        parentId: editingKP.parentId,
+        prerequisites: editingKP.prerequisites,
+      };
+
+      const response = await fetch('/api/admin/knowledge-points', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      if (!data.success) {
+        alert(data.message || '保存前驱关系失败');
+        return;
+      }
+      await fetchKnowledgePoints();
+      setShowPrereqModal(false);
+    } catch (error) {
+      console.error('保存前驱关系失败:', error);
+      alert('保存前驱关系失败，请稍后重试');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -277,7 +321,7 @@ export default function KnowledgeManagement() {
               ))}
             </div>
             <div className="p-6 border-t border-slate-700 flex justify-end">
-              <button onClick={() => setShowPrereqModal(false)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">完成</button>
+              <button onClick={handleSavePrereq} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">完成</button>
             </div>
           </div>
         </div>
