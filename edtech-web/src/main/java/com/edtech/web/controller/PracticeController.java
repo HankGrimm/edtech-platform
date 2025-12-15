@@ -129,7 +129,7 @@ public class PracticeController {
             };
             question.setDifficulty(diffValue);
             question.setType(99); // AI生成标记
-            question.setCreateTime(LocalDateTime.now());
+            question.setCreatedAt(LocalDateTime.now());
             questionMapper.insert(question);
 
             // 构造返回结果

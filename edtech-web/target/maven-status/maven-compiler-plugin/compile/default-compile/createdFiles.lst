@@ -1,11 +1,17 @@
+com\edtech\web\controller\AIQuestionController.class
 com\edtech\web\controller\PracticeController.class
 com\edtech\web\service\strategy\PracticeStrategyService$QuestionSelection.class
 com\edtech\web\controller\AiController$ExplainRequest.class
+com\edtech\web\controller\AITestController.class
 com\edtech\web\controller\AchievementController.class
+com\edtech\web\controller\AIQuestionControllerSimple$SimpleQuestionRequest.class
+com\edtech\web\controller\AIQuestionControllerSimple$SimpleExplainRequest.class
 com\edtech\web\controller\AuthController$RegisterRequest.class
 com\edtech\web\controller\PracticeController$SubmitRequest.class
 com\edtech\web\config\WebConfig.class
 com\edtech\web\controller\LeaderboardController.class
+com\edtech\web\controller\AIQuestionController$GenerateQuestionRequest.class
+com\edtech\web\controller\AIQuestionControllerSimple.class
 com\edtech\web\controller\DashboardController.class
 com\edtech\web\service\payment\PaymentStrategy.class
 com\edtech\web\controller\AiController.class
@@ -20,6 +26,7 @@ com\edtech\web\controller\AuthController$LoginRequest.class
 com\edtech\web\controller\AuthController.class
 com\edtech\web\config\SecurityConfig.class
 com\edtech\web\controller\ParentController$ParentSettingsRequest.class
+com\edtech\web\controller\AIQuestionController$ExplainRequest.class
 com\edtech\web\config\DataInitializer.class
 com\edtech\web\controller\KnowledgeController.class
 com\edtech\web\controller\DailyGoalController$GoalUpdateRequest.class

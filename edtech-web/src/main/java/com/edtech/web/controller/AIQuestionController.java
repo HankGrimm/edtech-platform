@@ -117,7 +117,7 @@ public class AIQuestionController {
                 default -> BigDecimal.valueOf(0.5);
             };
             question.setDifficulty(difficultyValue);
-            question.setCreateTime(LocalDateTime.now());
+            question.setCreatedAt(LocalDateTime.now());
             
             // 标记为AI生成
             question.setType(99); // 99表示AI生成题目

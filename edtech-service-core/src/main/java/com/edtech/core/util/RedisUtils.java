@@ -58,6 +58,10 @@ public class RedisUtils {
         return redisTemplate.opsForZSet().rangeByScore(key, min, max);
     }
 
+    public Double zScore(String key, Object value) {
+        return redisTemplate.opsForZSet().score(key, value);
+    }
+
     // --- List Operations ---
     public void lPush(String key, Object value) {
         redisTemplate.opsForList().leftPush(key, value);

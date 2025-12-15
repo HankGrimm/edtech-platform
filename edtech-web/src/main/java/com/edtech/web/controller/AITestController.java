@@ -19,6 +19,7 @@ import java.util.Map;
 public class AITestController {
 
     private final ContentGenerationService contentService;
+    private final com.edtech.ai.service.AIServiceDiagnostic diagnostic;
     
     @Value("${spring.ai.openai.api-key}")
     private String apiKey;
@@ -27,42 +28,41 @@ public class AITestController {
     private String baseUrl;
 
     /**
-     * 测试AI服务连接状态
+     * 测试AI服务连接状态 - 使用诊断服务
      */
     @GetMapping("/connection")
     public Map<String, Object> testConnection() {
+        log.info("🧪 开始AI连接测试...");
+        return diagnostic.diagnoseAIService();
+    }
+
+    /**
+     * 测试简单数学题目生成
+     */
+    @GetMapping("/simple-math")
+    public Map<String, Object> testSimpleMath() {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            // 检查配置
-            boolean hasValidKey = apiKey != null && !apiKey.startsWith("sk-请在");
-            result.put("configValid", hasValidKey);
-            result.put("baseUrl", baseUrl);
-            result.put("keyConfigured", hasValidKey);
-            
-            if (!hasValidKey) {
-                result.put("status", "CONFIG_ERROR");
-                result.put("message", "请在.env文件中配置正确的AI_API_KEY");
-                return result;
-            }
-            
-            // 测试简单AI调用
-            log.info("🧪 测试AI连接...");
-            var testQuestion = contentService.generateRemedialQuestion(
-                "测试知识点", 0.5, "无", "无", 0, "Easy"
-            );
+            log.info("🧮 测试简单数学题目生成...");
+            String mathResponse = diagnostic.testMathQuestionGeneration();
             
             result.put("status", "SUCCESS");
-            result.put("message", "AI服务连接正常");
-            result.put("testQuestion", testQuestion.getStem());
+            result.put("message", "数学题目生成成功");
+            result.put("rawResponse", mathResponse);
             
-            log.info("✅ AI连接测试成功");
+            // 尝试解析JSON
+            try {
+                cn.hutool.json.JSONObject questionJson = cn.hutool.json.JSONUtil.parseObj(mathResponse.trim());
+                result.put("parsedQuestion", questionJson);
+            } catch (Exception parseError) {
+                result.put("parseError", "JSON解析失败: " + parseError.getMessage());
+            }
             
         } catch (Exception e) {
-            log.error("❌ AI连接测试失败", e);
+            log.error("❌ 数学题目生成测试失败", e);
             result.put("status", "ERROR");
-            result.put("message", "AI服务连接失败: " + e.getMessage());
-            result.put("error", e.getClass().getSimpleName());
+            result.put("message", e.getMessage());
         }
         
         return result;

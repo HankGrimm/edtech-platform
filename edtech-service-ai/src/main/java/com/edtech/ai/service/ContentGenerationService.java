@@ -65,73 +65,115 @@ public class ContentGenerationService {
             }
         }
 
-        // 最佳动态Prompt模板
-        String userPrompt = StrUtil.format("""
-                # 角色设定
-                你是一位拥有20年教学经验的高中数学特级教师，专精个性化教学和因材施教。
+        // 简化的Prompt模板，避免格式问题
+        String userPrompt = String.format("""
+                你是一位高中数学特级教师。请为以下学生生成一道数学选择题：
                 
-                # 学生画像分析
-                - **目标知识点**: {}
-                - **当前掌握水平**: {:.1%} (0%=完全不会, 100%=完全掌握)
-                - **历史学习误区**: {}
-                - **最近错误情况**: {}
-                - **复习时机**: 距离上次学习已{}天
-                - **本次目标**: {} - {}
+                知识点：%s
+                学生掌握水平：%.0f%% (掌握度越低需要越简单的题目)
+                难度要求：%s
                 
-                # 出题要求
-                1. **针对性**: 根据掌握水平{:.1%}，精准定位学生当前需要突破的点
-                2. **误区设计**: 干扰选项必须体现该知识点的典型错误思路
-                3. **LaTeX支持**: 数学公式使用标准LaTeX格式，如 $\\frac{{a}}{{b}}$, $\\sqrt{{x}}$
-                4. **实用性**: 题目贴近高考真题风格，有实际教学价值
-                5. **渐进性**: 难度与学生水平匹配，既有挑战性又不会打击信心
+                要求：
+                1. 题目难度要匹配学生水平
+                2. 选项设计要包含常见错误
+                3. 数学公式用LaTeX格式，如 $\\frac{a}{b}$, $\\sqrt{x}$
+                4. 输出严格的JSON格式，不要有多余的文字
                 
-                # 输出格式 (严格JSON)
-                {{
-                  "content": "题干内容(支持LaTeX公式)",
-                  "options": ["A. 选项内容", "B. 选项内容", "C. 选项内容", "D. 选项内容"],
+                JSON格式：
+                {
+                  "content": "题干内容",
+                  "options": ["A. 选项1", "B. 选项2", "C. 选项3", "D. 选项4"],
                   "correctAnswer": "A",
-                  "analysis": "详细解析(包含解题思路、易错点分析、知识点总结)",
-                  "difficulty": "{}",
+                  "analysis": "详细解析",
+                  "difficulty": "%s",
                   "type": 1
-                }}
-                
-                请立即生成一道高质量的数学选择题:
+                }
                 """, 
-                kpName, probability, commonMistakes, lastWrong, daysSinceReview, 
-                difficultyLevel, difficultyPrompt, probability, difficultyLevel);
+                kpName, probability * 100, difficultyPrompt, difficultyLevel);
 
         String response = callQwen(userPrompt);
 
-        // Parse Response
+        // Parse Response with enhanced error handling
         try {
-            // Cleanup markdown code blocks if present
-            if (response.startsWith("```json")) {
-                response = response.substring(7);
-            }
-            if (response.startsWith("```")) {
-                response = response.substring(3);
-            }
-            if (response.endsWith("```")) {
-                response = response.substring(0, response.length() - 3);
+            log.info("🔍 原始AI响应: {}", response);
+            
+            // 清理响应格式
+            String cleanResponse = response.trim();
+            
+            // 移除markdown代码块标记
+            if (cleanResponse.startsWith("```json")) {
+                cleanResponse = cleanResponse.substring(7);
+            } else if (cleanResponse.startsWith("```")) {
+                cleanResponse = cleanResponse.substring(3);
             }
             
-            JSONObject json = JSONUtil.parseObj(response);
+            if (cleanResponse.endsWith("```")) {
+                cleanResponse = cleanResponse.substring(0, cleanResponse.length() - 3);
+            }
+            
+            // 查找JSON部分
+            int jsonStart = cleanResponse.indexOf("{");
+            int jsonEnd = cleanResponse.lastIndexOf("}");
+            
+            if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                cleanResponse = cleanResponse.substring(jsonStart, jsonEnd + 1);
+            }
+            
+            log.info("🧹 清理后的JSON: {}", cleanResponse);
+            
+            JSONObject json = JSONUtil.parseObj(cleanResponse);
             GeneratedQuestionVO vo = new GeneratedQuestionVO();
-            vo.setStem(json.getStr("content")); // JSON key is content, VO field is stem
             
-            JSONArray opts = json.getJSONArray("options");
-            if (opts != null) {
-                vo.setOptions(opts.toList(String.class));
+            // 设置题干
+            String content = json.getStr("content");
+            if (content == null || content.isEmpty()) {
+                throw new RuntimeException("AI响应中缺少题干内容");
             }
-            vo.setCorrectAnswer(json.getStr("correctAnswer"));
-            vo.setAnalysis(json.getStr("analysis"));
-            // vo.setDifficulty(json.getStr("difficulty")); // Might be Double in JSON but String in VO?
+            vo.setStem(content);
+            
+            // 设置选项
+            JSONArray opts = json.getJSONArray("options");
+            if (opts != null && opts.size() >= 4) {
+                vo.setOptions(opts.toList(String.class));
+            } else {
+                // 如果选项解析失败，创建默认选项
+                log.warn("⚠️ 选项解析失败，使用默认选项");
+                vo.setOptions(List.of("A. 选项A", "B. 选项B", "C. 选项C", "D. 选项D"));
+            }
+            
+            // 设置正确答案
+            String correctAnswer = json.getStr("correctAnswer");
+            vo.setCorrectAnswer(correctAnswer != null ? correctAnswer : "A");
+            
+            // 设置解析
+            String analysis = json.getStr("analysis");
+            vo.setAnalysis(analysis != null ? analysis : "解析生成中...");
+            
+            // 设置难度
+            vo.setDifficulty(difficultyLevel);
+            
+            log.info("✅ AI题目解析成功: 题干长度={}, 选项数={}", 
+                    vo.getStem().length(), vo.getOptions().size());
             
             return vo;
 
         } catch (Exception e) {
-            log.error("Failed to parse AI response: {}", response, e);
-            throw new RuntimeException("Content generation failed", e);
+            log.error("❌ AI响应解析失败: {}", response, e);
+            
+            // 创建降级题目
+            GeneratedQuestionVO fallbackVO = new GeneratedQuestionVO();
+            fallbackVO.setStem("AI生成题目解析失败，请重试。如果问题持续，请检查API配置。");
+            fallbackVO.setOptions(List.of(
+                "A. 重新生成题目", 
+                "B. 检查网络连接", 
+                "C. 验证API密钥", 
+                "D. 联系技术支持"
+            ));
+            fallbackVO.setCorrectAnswer("A");
+            fallbackVO.setAnalysis("系统提示：AI服务暂时不可用，请稍后重试。错误详情：" + e.getMessage());
+            fallbackVO.setDifficulty(difficultyLevel);
+            
+            return fallbackVO;
         }
     }
 
@@ -162,6 +204,12 @@ public class ContentGenerationService {
     private String callQwen(String prompt) {
         String url = baseUrl + "/v1/chat/completions";
         
+        // 检查API密钥
+        if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("sk-请在")) {
+            log.error("❌ API密钥未配置或无效: {}", apiKey);
+            throw new RuntimeException("API密钥未正确配置，请在.env文件中设置AI_API_KEY");
+        }
+        
         Map<String, Object> message = new HashMap<>();
         message.put("role", "user");
         message.put("content", prompt);
@@ -170,22 +218,60 @@ public class ContentGenerationService {
         body.put("model", MODEL);
         body.put("messages", List.of(message));
         body.put("temperature", 0.7);
+        body.put("max_tokens", 2000);
+
+        log.info("🔗 调用AI API: {}", url);
+        log.info("📝 Prompt长度: {} 字符", prompt.length());
 
         try (HttpResponse response = HttpRequest.post(url)
                 .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
                 .body(JSONUtil.toJsonStr(body))
+                .timeout(30000) // 30秒超时
                 .execute()) {
 
+            log.info("📡 AI API响应状态: {}", response.getStatus());
+
             if (!response.isOk()) {
-                log.error("AI API Error: {}", response.body());
-                throw new RuntimeException("AI API Call Failed: " + response.getStatus());
+                String errorBody = response.body();
+                log.error("❌ AI API调用失败: 状态码={}, 响应={}", response.getStatus(), errorBody);
+                
+                // 根据错误码提供具体建议
+                if (response.getStatus() == 401) {
+                    throw new RuntimeException("API密钥无效，请检查AI_API_KEY配置");
+                } else if (response.getStatus() == 403) {
+                    throw new RuntimeException("API密钥权限不足或余额不足");
+                } else if (response.getStatus() == 429) {
+                    throw new RuntimeException("API调用频率超限，请稍后重试");
+                } else {
+                    throw new RuntimeException("AI API调用失败: " + response.getStatus() + " - " + errorBody);
+                }
             }
 
-            JSONObject json = JSONUtil.parseObj(response.body());
-            return json.getJSONArray("choices")
-                    .getJSONObject(0)
-                    .getJSONObject("message")
-                    .getStr("content");
+            String responseBody = response.body();
+            log.info("📄 AI API响应长度: {} 字符", responseBody.length());
+            
+            try {
+                JSONObject json = JSONUtil.parseObj(responseBody);
+                String content = json.getJSONArray("choices")
+                        .getJSONObject(0)
+                        .getJSONObject("message")
+                        .getStr("content");
+                        
+                log.info("✅ AI内容生成成功，长度: {} 字符", content.length());
+                return content;
+                
+            } catch (Exception parseError) {
+                log.error("❌ AI响应解析失败: {}", responseBody, parseError);
+                throw new RuntimeException("AI响应格式异常: " + parseError.getMessage());
+            }
+            
+        } catch (Exception e) {
+            if (e instanceof RuntimeException) {
+                throw e; // 重新抛出已处理的异常
+            }
+            log.error("❌ AI API调用异常", e);
+            throw new RuntimeException("AI服务连接失败: " + e.getMessage(), e);
         }
     }
 }

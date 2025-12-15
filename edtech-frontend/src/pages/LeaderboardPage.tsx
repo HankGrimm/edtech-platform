@@ -135,7 +135,7 @@ export default function LeaderboardPage() {
   }
 
   return (
-    <div className="p-2">
+    <div className="p-2 pt-4 md:pt-6">
       <header className="mb-6">
         <div className="flex items-center justify-between">
           <div>
@@ -202,7 +202,7 @@ export default function LeaderboardPage() {
 
           {/* Top 3 Podium */}
           {leaderboard && leaderboard.rankings.length >= 3 && (
-            <div className="flex items-end justify-center gap-4 mb-8 h-48">
+            <div className="flex items-end justify-center gap-4 mt-22 mb-8 h-52">
               {/* 2nd Place */}
               <motion.div 
                 className="flex flex-col items-center"

@@ -1,2 +1,3 @@
+com\edtech\ai\service\AIServiceDiagnostic.class
 com\edtech\ai\model\GeneratedQuestionVO.class
 com\edtech\ai\service\ContentGenerationService.class
