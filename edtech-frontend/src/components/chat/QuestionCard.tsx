@@ -16,9 +16,10 @@ export interface QuestionData {
 interface QuestionCardProps {
   question: QuestionData;
   onSubmit: (isCorrect: boolean, selectedOption: string) => void;
+  showHint?: boolean;
 }
 
-export function QuestionCard({ question, onSubmit }: QuestionCardProps) {
+export function QuestionCard({ question, onSubmit, showHint = true }: QuestionCardProps) {
   const [selected, setSelected] = useState<number | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -103,7 +104,7 @@ export function QuestionCard({ question, onSubmit }: QuestionCardProps) {
       {/* 3. Footer / Action */}
       <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-8 py-5">
         <span className="text-sm text-slate-400">
-          {isSubmitted ? "解析已显示在下方" : "请选择一个选项"}
+          {isSubmitted ? (showHint ? "解析已显示在下方" : "已提交") : "请选择一个选项"}
         </span>
         
         <AnimatePresence>
@@ -121,9 +122,9 @@ export function QuestionCard({ question, onSubmit }: QuestionCardProps) {
         </AnimatePresence>
       </div>
 
-      {/* 4. Analysis (Reveal after submit) */}
+      {/* 4. Analysis (Reveal after submit, only if showHint enabled) */}
       <AnimatePresence>
-        {isSubmitted && (
+        {isSubmitted && showHint && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -132,7 +133,10 @@ export function QuestionCard({ question, onSubmit }: QuestionCardProps) {
             <div className="py-6 text-slate-200">
               <h4 className="mb-2 font-bold text-indigo-300">💡 题目解析</h4>
               <div className="leading-relaxed opacity-90">
-                 <Latex>{question.analysis}</Latex>
+                {question.analysis
+                  ? <Latex>{question.analysis}</Latex>
+                  : <span className="flex items-center gap-2 text-slate-400 text-sm"><span className="w-3 h-3 border-2 border-slate-500 border-t-indigo-400 rounded-full animate-spin" />AI 解析生成中...</span>
+                }
               </div>
             </div>
           </motion.div>

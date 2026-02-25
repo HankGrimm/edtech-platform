@@ -11,7 +11,12 @@ import com.edtech.model.mapper.QuestionMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 
+import java.io.BufferedReader;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -193,6 +198,51 @@ public class AIQuestionController {
         public String questionContent;
         public String wrongAnswer;
         public String correctAnswer;
+    }
+
+    @GetMapping(value = "/explain-stream", produces = "text/event-stream")
+    public SseEmitter explainStream(
+            @RequestParam String questionContent,
+            @RequestParam String wrongAnswer,
+            @RequestParam String correctAnswer) {
+        SseEmitter emitter = new SseEmitter(60000L);
+        String prompt = contentService.buildExplanationPrompt(questionContent, wrongAnswer, correctAnswer);
+
+        new Thread(() -> {
+            try {
+                String rawBody = contentService.callQwenStreamRaw(prompt);
+                if (rawBody == null) {
+                    emitter.send(SseEmitter.event().name("error").data("AI服务异常"));
+                    emitter.complete();
+                    return;
+                }
+                BufferedReader reader = new BufferedReader(new StringReader(rawBody));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("data: ")) {
+                        String data = line.substring(6).trim();
+                        if ("[DONE]".equals(data)) break;
+                        try {
+                            JSONObject chunk = JSONUtil.parseObj(data);
+                            String delta = chunk.getJSONArray("choices")
+                                    .getJSONObject(0)
+                                    .getJSONObject("delta")
+                                    .getStr("content");
+                            if (delta != null && !delta.isEmpty()) {
+                                emitter.send(SseEmitter.event().name("chunk").data(delta));
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                emitter.complete();
+            } catch (Exception e) {
+                log.error("SSE stream error", e);
+                try { emitter.completeWithError(e); } catch (Exception ignored) {}
+            }
+        }).start();
+
+        return emitter;
     }
 
     @PostMapping("/exam-report")

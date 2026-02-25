@@ -26,7 +26,7 @@ export default function LoginPage() {
       localStorage.setItem('role', role);
       localStorage.setItem('username', uname);
       localStorage.setItem('userId', String(userId));
-      navigate('/');
+      navigate('/app');
     } catch (err: any) {
       setError(err?.response?.data?.message || '用户名或密码错误');
     } finally {

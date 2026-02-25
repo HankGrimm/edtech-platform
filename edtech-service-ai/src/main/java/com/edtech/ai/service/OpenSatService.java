@@ -106,46 +106,66 @@ public class OpenSatService {
         try {
             GeneratedQuestionVO vo = new GeneratedQuestionVO();
 
-            // stem: try "question" then "stem"
-            String stem = item.getStr("question");
-            if (stem == null || stem.isEmpty()) stem = item.getStr("stem");
+            // The actual API response wraps content inside a "question" object:
+            // { "question": { "question": "stem", "choices": {"A":"...","B":"..."}, "correct_answer":"A", "explanation":"..." }, "difficulty":"Medium", "domain":"..." }
+            JSONObject inner = item.getJSONObject("question");
+            if (inner == null) inner = item; // fallback: flat structure
+
+            // stem
+            String stem = inner.getStr("question");
+            if (stem == null || stem.isEmpty()) stem = inner.getStr("stem");
+            if (stem == null || stem.isEmpty()) stem = item.getStr("question");
             if (stem == null || stem.isEmpty()) {
                 log.warn("Skipping OpenSAT item with no stem: {}", item);
                 return null;
             }
+
+            // paragraph context (prepend if present)
+            String paragraph = inner.getStr("paragraph");
+            if (paragraph != null && !paragraph.isEmpty() && !"null".equals(paragraph)) {
+                stem = paragraph + "\n\n" + stem;
+            }
             vo.setStem(stem);
 
-            // options: try "answer_choices" then "options"
+            // options: "choices" is a map {"A":"...","B":"...","C":"...","D":"..."}
             List<String> opts = new ArrayList<>();
-            JSONArray choicesArr = item.getJSONArray("answer_choices");
-            if (choicesArr == null) choicesArr = item.getJSONArray("options");
-            if (choicesArr != null) {
-                for (int i = 0; i < choicesArr.size(); i++) {
-                    Object choice = choicesArr.get(i);
-                    if (choice instanceof JSONObject) {
-                        // format: {"id":"A","content":"..."}
-                        JSONObject c = (JSONObject) choice;
-                        String id = c.getStr("id");
-                        String content = c.getStr("content");
-                        if (id == null) id = c.getStr("letter");
-                        opts.add((id != null ? id + ". " : "") + (content != null ? content : c.toString()));
-                    } else {
-                        opts.add(choice.toString());
+            JSONObject choicesMap = inner.getJSONObject("choices");
+            if (choicesMap != null) {
+                for (String key : new String[]{"A", "B", "C", "D"}) {
+                    String val = choicesMap.getStr(key);
+                    if (val != null) opts.add(key + ". " + val);
+                }
+            }
+            // fallback: try array formats
+            if (opts.isEmpty()) {
+                JSONArray choicesArr = inner.getJSONArray("answer_choices");
+                if (choicesArr == null) choicesArr = inner.getJSONArray("options");
+                if (choicesArr != null) {
+                    for (int i = 0; i < choicesArr.size(); i++) {
+                        Object choice = choicesArr.get(i);
+                        if (choice instanceof JSONObject) {
+                            JSONObject c = (JSONObject) choice;
+                            String id = c.getStr("id");
+                            String content = c.getStr("content");
+                            opts.add((id != null ? id + ". " : "") + (content != null ? content : c.toString()));
+                        } else {
+                            opts.add(choice.toString());
+                        }
                     }
                 }
             }
             vo.setOptions(opts.isEmpty() ? List.of("A. Option A", "B. Option B", "C. Option C", "D. Option D") : opts);
 
             // correct answer
-            String correct = item.getStr("correct_answer");
-            if (correct == null) correct = item.getStr("answer");
-            if (correct == null) correct = item.getStr("correctAnswer");
+            String correct = inner.getStr("correct_answer");
+            if (correct == null) correct = inner.getStr("answer");
+            if (correct == null) correct = item.getStr("correct_answer");
             vo.setCorrectAnswer(correct != null ? correct : "A");
 
-            // analysis / rationale
-            String analysis = item.getStr("rationale");
-            if (analysis == null) analysis = item.getStr("explanation");
-            if (analysis == null) analysis = item.getStr("analysis");
+            // analysis
+            String analysis = inner.getStr("explanation");
+            if (analysis == null) analysis = inner.getStr("rationale");
+            if (analysis == null) analysis = inner.getStr("analysis");
             vo.setAnalysis(analysis != null ? analysis : "");
 
             // difficulty

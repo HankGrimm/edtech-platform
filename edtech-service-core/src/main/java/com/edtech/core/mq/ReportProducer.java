@@ -1,9 +1,9 @@
 package com.edtech.core.mq;
 
 import com.edtech.core.config.RabbitConfig;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -11,17 +11,16 @@ import java.util.Map;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class ReportProducer {
 
-    private final RabbitTemplate rabbitTemplate;
+    @Autowired(required = false)
+    private RabbitTemplate rabbitTemplate;
 
-    /**
-     * 发送生成周报的请求
-     *
-     * @param studentId 学生ID
-     */
     public void sendReportGenerationRequest(Long studentId) {
+        if (rabbitTemplate == null) {
+            log.warn("RabbitMQ disabled, skipping report request for student: {}", studentId);
+            return;
+        }
         Map<String, Object> message = new HashMap<>();
         message.put("studentId", studentId);
         message.put("timestamp", System.currentTimeMillis());
@@ -31,3 +30,4 @@ public class ReportProducer {
         rabbitTemplate.convertAndSend(RabbitConfig.REPORT_QUEUE, message);
     }
 }
+

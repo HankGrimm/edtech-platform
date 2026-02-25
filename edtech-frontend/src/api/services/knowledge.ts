@@ -196,7 +196,27 @@ export async function submitExerciseResult(data: SubmitAnswerRequest): Promise<v
 }
 
 /**
- * 获取 AI 智能解析
+ * 获取 AI 智能解析 (流式 SSE)
+ */
+export function getAiExplanationStream(
+  questionContent: string,
+  wrongAnswer: string,
+  correctAnswer: string,
+  onChunk: (chunk: string) => void,
+  onDone: () => void,
+  onError: (e: Event) => void
+): EventSource {
+  const params = new URLSearchParams({ questionContent, wrongAnswer, correctAnswer });
+  const url = `http://localhost:8080/api/ai/explain-stream?${params.toString()}`;
+  const es = new EventSource(url);
+  es.addEventListener('chunk', (e: MessageEvent) => onChunk(e.data));
+  es.addEventListener('done', () => { es.close(); onDone(); });
+  es.addEventListener('error', (e) => { es.close(); onError(e); });
+  return es;
+}
+
+/**
+ * 获取 AI 智能解析 (fallback 非流式)
  */
 export async function getAiExplanation(questionContent: string, wrongAnswer: string, correctAnswer: string): Promise<string> {
     if (USE_MOCK) return "Mock Explanation: This is a simulated AI response.";
@@ -251,6 +271,8 @@ export interface GenerateQuestionParams {
     difficulty?: string;
     domain?: string;
     source?: string;
+    examMode?: boolean;
+    showHint?: boolean;
 }
 
 export async function generatePracticeQuestion(params: GenerateQuestionParams): Promise<QuestionResponse> {
@@ -357,6 +379,7 @@ export interface ExamQuestionRecord {
   userAnswer: string;
   isCorrect: boolean;
   domain?: string;
+  analysis?: string;
 }
 
 export interface WrongQuestionAnalysis {

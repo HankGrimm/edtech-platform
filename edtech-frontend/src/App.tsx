@@ -6,6 +6,7 @@ import PracticePage from './pages/PracticePage';
 import ReportPage from './pages/ReportPage';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
+import LandingPage from './pages/LandingPage';
 import WrongQuestionsPage from './pages/WrongQuestionsPage';
 import AchievementsPage from './pages/AchievementsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
@@ -28,9 +29,13 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Student Routes */}
+        {/* Public Routes */}
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={
+        <Route path="/practice" element={<PracticePage />} />
+
+        {/* Protected Student Routes */}
+        <Route path="/app" element={
           <RequireAuth>
             <AppLayout />
           </RequireAuth>

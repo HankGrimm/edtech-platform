@@ -53,12 +53,36 @@ public class PracticeController {
         return 1L;
     }
 
+    private static final String OPENSAT_CACHE_KEY = "opensat:math:pool";
+    private static final int CACHE_BATCH = 20;
+
     @GetMapping("/random")
     public Map<String, Object> getRandomQuestion() {
-        log.info("Fetching random question from OpenSAT API...");
-        List<GeneratedQuestionVO> questions = openSatService.fetchMathQuestions(1);
+        // Try to pop one question from Redis cache
+        Object cached = redisUtils.lPop(OPENSAT_CACHE_KEY);
+        if (cached != null) {
+            GeneratedQuestionVO vo = JSONUtil.toBean(cached.toString(), GeneratedQuestionVO.class);
+            Map<String, Object> response = new HashMap<>();
+            response.put("data", vo);
+            response.put("strategy", "OpenSAT API 实时获取");
+            response.put("strategyCode", "OPENSAT");
+            // Refill cache in background if running low
+            Long remaining = redisUtils.lLen(OPENSAT_CACHE_KEY);
+            if (remaining != null && remaining < 5) {
+                new Thread(() -> refillCache()).start();
+            }
+            return response;
+        }
 
+        // Cache empty: fetch from OpenSAT synchronously
+        log.info("Cache empty, fetching from OpenSAT...");
+        List<GeneratedQuestionVO> questions = openSatService.fetchMathQuestions(CACHE_BATCH);
         if (!questions.isEmpty()) {
+            // Push all except first to cache
+            for (int i = 1; i < questions.size(); i++) {
+                redisUtils.rPush(OPENSAT_CACHE_KEY, JSONUtil.toJsonStr(questions.get(i)));
+            }
+            redisUtils.expire(OPENSAT_CACHE_KEY, 30, TimeUnit.MINUTES);
             GeneratedQuestionVO vo = questions.get(0);
             Map<String, Object> response = new HashMap<>();
             response.put("data", vo);
@@ -67,9 +91,9 @@ public class PracticeController {
             return response;
         }
 
+        // Fallback to local strategy
         Long studentId = getCurrentUserId();
         PracticeStrategyService.QuestionSelection selection = strategyService.selectNextQuestion(studentId);
-
         Map<String, Object> response = new HashMap<>();
         if (selection != null && selection.question() != null) {
             response.put("data", selection.question());
@@ -77,6 +101,19 @@ public class PracticeController {
             response.put("strategyCode", selection.strategyCode());
         }
         return response;
+    }
+
+    private void refillCache() {
+        try {
+            List<GeneratedQuestionVO> questions = openSatService.fetchMathQuestions(CACHE_BATCH);
+            for (GeneratedQuestionVO q : questions) {
+                redisUtils.rPush(OPENSAT_CACHE_KEY, JSONUtil.toJsonStr(q));
+            }
+            redisUtils.expire(OPENSAT_CACHE_KEY, 30, TimeUnit.MINUTES);
+            log.info("Refilled OpenSAT cache with {} questions", questions.size());
+        } catch (Exception e) {
+            log.warn("Failed to refill OpenSAT cache: {}", e.getMessage());
+        }
     }
 
     @GetMapping("/generate")

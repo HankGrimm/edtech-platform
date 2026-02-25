@@ -43,6 +43,10 @@ public class SecurityConfig {
                     "/api/auth/**",
                     "/api/admin/login",
                     "/api/public/**",
+                    "/api/ai/generate-question",
+                    "/api/ai/explain",
+                    "/api/ai/explain-stream",
+                    "/api/practice/random",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
                     "/actuator/**"

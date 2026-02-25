@@ -172,6 +172,55 @@ public class ContentGenerationService {
         return callQwen(userPrompt);
     }
 
+    public String buildExplanationPrompt(String questionContent, String wrongAnswer, String correctAnswer) {
+        return StrUtil.format("""
+                Role: You are a patient and knowledgeable AI tutor.
+                Task: Explain why the student's answer is wrong and provide a detailed derivation for the correct answer.
+                Question: {}
+                Student's Wrong Answer: {}
+                Correct Answer: {}
+
+                Requirements:
+                1. Analyze the likely misconception in the wrong answer.
+                2. Provide step-by-step derivation for the correct answer.
+                3. Create a similar but simpler example question to reinforce the concept.
+                4. Output Format: Markdown (Use LaTeX for math).
+                5. Language: Chinese (Simplified).
+                """, questionContent, wrongAnswer, correctAnswer);
+    }
+
+    public String callQwenStreamRaw(String prompt) {
+        String url = baseUrl + "/v1/chat/completions";
+
+        Map<String, Object> message = new HashMap<>();
+        message.put("role", "user");
+        message.put("content", prompt);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", MODEL);
+        body.put("messages", List.of(message));
+        body.put("temperature", 0.7);
+        body.put("max_tokens", 2000);
+        body.put("stream", true);
+
+        try (HttpResponse response = HttpRequest.post(url)
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .body(JSONUtil.toJsonStr(body))
+                .timeout(60000)
+                .execute()) {
+
+            if (!response.isOk()) {
+                log.error("Stream API error: {}", response.getStatus());
+                return null;
+            }
+            return response.body();
+        } catch (Exception e) {
+            log.error("Stream call failed", e);
+            return null;
+        }
+    }
+
     public String generateExamReport(java.util.List<java.util.Map<String, Object>> items, String subject) {
         log.info("生成考试报告: 题目数={}, subject={}", items.size(), subject);
 
@@ -237,7 +286,7 @@ public class ContentGenerationService {
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "application/json")
                 .body(JSONUtil.toJsonStr(body))
-                .timeout(30000)
+                .timeout(60000)
                 .execute()) {
 
             log.info("📡 AI API响应状态: {}", response.getStatus());

@@ -19,21 +19,21 @@ import {
 import { cn } from '../../utils/cn';
 
 const MENU_ITEMS = [
-  { path: '/', label: '首页', icon: Home },
-  { path: '/practice', label: '智能刷题', icon: PenTool },
-  { path: '/wrong-questions', label: '错题本', icon: BookX },
-  { path: '/report', label: '成长报告', icon: ChartColumn },
-  { path: '/achievements', label: '成就殿堂', icon: Trophy },
-  { path: '/leaderboard', label: '排行榜', icon: Medal },
-  { path: '/daily-goals', label: '每日目标', icon: Target },
-  { path: '/knowledge-graph', label: '知识图谱', icon: Network },
+  { path: '/app', label: '首页', icon: Home },
+  { path: '/app/practice', label: '智能刷题', icon: PenTool },
+  { path: '/app/wrong-questions', label: '错题本', icon: BookX },
+  { path: '/app/report', label: '成长报告', icon: ChartColumn },
+  { path: '/app/achievements', label: '成就殿堂', icon: Trophy },
+  { path: '/app/leaderboard', label: '排行榜', icon: Medal },
+  { path: '/app/daily-goals', label: '每日目标', icon: Target },
+  { path: '/app/knowledge-graph', label: '知识图谱', icon: Network },
 ];
 
 const MOBILE_TAB_ITEMS = [
-  { path: '/', label: '首页', icon: Home },
-  { path: '/practice', label: '练习', icon: PenTool },
-  { path: '/report', label: '报告', icon: ChartColumn },
-  { path: '/settings', label: '我的', icon: Settings },
+  { path: '/app', label: '首页', icon: Home },
+  { path: '/app/practice', label: '练习', icon: PenTool },
+  { path: '/app/report', label: '报告', icon: ChartColumn },
+  { path: '/app/settings', label: '我的', icon: Settings },
 ];
 
 export default function AppLayout() {
@@ -104,11 +104,11 @@ export default function AppLayout() {
           {/* Parent Dashboard Link (if parent) */}
           {isParent && (
             <Link
-              to="/parent"
+              to="/app/parent"
               className={cn(
                 "relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors duration-200",
-                location.pathname === '/parent' 
-                  ? "bg-violet-100 text-violet-600 font-medium" 
+                location.pathname === '/app/parent'
+                  ? "bg-violet-100 text-violet-600 font-medium"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               )}
             >
@@ -147,12 +147,12 @@ export default function AppLayout() {
         </nav>
 
         <div className="pt-6 border-t border-slate-100 space-y-2">
-          <Link 
-            to="/settings"
+          <Link
+            to="/app/settings"
             className={cn(
               "flex items-center gap-3 px-4 py-3 rounded-2xl transition-all w-full",
-              location.pathname === '/settings' 
-                ? "bg-primary-50 text-primary-600 font-medium" 
+              location.pathname === '/app/settings'
+                ? "bg-primary-50 text-primary-600 font-medium"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
             )}
           >
@@ -228,8 +228,8 @@ export default function AppLayout() {
                   );
                 })}
                 <div className="pt-4 border-t border-slate-100">
-                  <Link 
-                    to="/settings"
+                  <Link
+                    to="/app/settings"
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-50"
                   >

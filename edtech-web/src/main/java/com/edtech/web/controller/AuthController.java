@@ -28,6 +28,10 @@ public class AuthController {
                 .eq(User::getUsername, request.getUsername()));
 
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            log.warn("Login failed for [{}], db password=[{}], length={}",
+                request.getUsername(),
+                user != null ? user.getPassword() : "null",
+                user != null ? user.getPassword().length() : 0);
             throw new RuntimeException("用户名或密码错误");
         }
 

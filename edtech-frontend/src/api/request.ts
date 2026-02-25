@@ -9,7 +9,7 @@ const BASE_URL = 'http://localhost:8080/api';
 // --- Axios Instance ---
 const request = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 60000,
 });
 
 // --- Request Interceptor ---

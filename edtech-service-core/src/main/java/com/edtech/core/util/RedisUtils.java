@@ -74,4 +74,20 @@ public class RedisUtils {
     public java.util.List<Object> lRange(String key, long start, long end) {
         return redisTemplate.opsForList().range(key, start, end);
     }
+
+    public Object lPop(String key) {
+        return redisTemplate.opsForList().leftPop(key);
+    }
+
+    public void rPush(String key, Object value) {
+        redisTemplate.opsForList().rightPush(key, value);
+    }
+
+    public Long lLen(String key) {
+        return redisTemplate.opsForList().size(key);
+    }
+
+    public void expire(String key, long timeout, TimeUnit unit) {
+        redisTemplate.expire(key, timeout, unit);
+    }
 }
