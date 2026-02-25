@@ -1,14 +1,8 @@
 package com.edtech.web.config;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.edtech.model.entity.KnowledgePoint;
-import com.edtech.model.entity.KnowledgeState;
-import com.edtech.model.entity.Question;
-import com.edtech.model.entity.StudentExerciseLog;
-import com.edtech.model.mapper.KnowledgePointMapper;
-import com.edtech.model.mapper.KnowledgeStateMapper;
-import com.edtech.model.mapper.QuestionMapper;
-import com.edtech.model.mapper.StudentExerciseLogMapper;
+import com.edtech.model.entity.*;
+import com.edtech.model.mapper.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,14 +22,14 @@ public class DataInitializer implements CommandLineRunner {
     private final QuestionMapper questionMapper;
     private final StudentExerciseLogMapper studentExerciseLogMapper;
     private final KnowledgeStateMapper knowledgeStateMapper;
-    
-    // JSON processing for options
+    private final UserMapper userMapper;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public void run(String... args) throws Exception {
         log.info("Checking data initialization...");
-        
+
         // 1. Check and init Knowledge Points
         if (knowledgePointMapper.selectCount(null) == 0) {
             initKnowledgePoints();
@@ -46,13 +40,13 @@ public class DataInitializer implements CommandLineRunner {
             initQuestions();
         }
 
-        // 3. Check and init Student Data (Logs & States)
-        // Assuming Student ID = 1
+        // 3. Check and init Student Data
         Long studentId = 1L;
-        if (studentExerciseLogMapper.selectCount(new LambdaQueryWrapper<StudentExerciseLog>().eq(StudentExerciseLog::getStudentId, studentId)) == 0) {
+        if (studentExerciseLogMapper.selectCount(new LambdaQueryWrapper<StudentExerciseLog>()
+                .eq(StudentExerciseLog::getStudentId, studentId)) == 0) {
             initStudentData(studentId);
         }
-        
+
         log.info("Data initialization completed.");
     }
 

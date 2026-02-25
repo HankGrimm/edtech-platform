@@ -129,8 +129,8 @@ export async function getRandomQuestion(): Promise<QuestionResponse> {
     }
 
     const question: QuestionData = {
-        id: qData.id,
-        stem: qData.content,
+        id: qData.id || Date.now(),
+        stem: qData.stem || qData.content || "题目内容缺失",
         options: opts,
         correctAnswer: qData.correctAnswer,
         analysis: qData.analysis || "暂无解析"

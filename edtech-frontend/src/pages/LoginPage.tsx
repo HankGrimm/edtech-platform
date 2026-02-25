@@ -2,26 +2,34 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LogIn, User, Lock, Sparkles, BookOpen, Target, Trophy, ArrowRight } from 'lucide-react';
+import request from '../api/request';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    if (username === 'admin' || username === 'student' || username === 'parent') {
-      localStorage.setItem('token', 'mock_jwt_token');
-      localStorage.setItem('role', username === 'admin' ? 'ADMIN' : username === 'parent' ? 'PARENT' : 'STUDENT');
+    setError('');
+
+    try {
+      const res = await request.post<{ token: string; role: string; username: string; userId: number }>(
+        '/auth/login',
+        { username, password }
+      );
+      const { token, role, username: uname, userId } = res.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('role', role);
+      localStorage.setItem('username', uname);
+      localStorage.setItem('userId', String(userId));
       navigate('/');
-    } else {
-      alert('无效的用户名');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || '用户名或密码错误');
+    } finally {
       setLoading(false);
     }
   };
@@ -125,16 +133,22 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5">
+              {error && (
+                <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+                  {error}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">用户名</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={username}
                     onChange={e => setUsername(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
-                    placeholder="输入 student, parent 或 admin"
+                    placeholder="输入用户名"
+                    required
                   />
                 </div>
               </div>
@@ -143,12 +157,13 @@ export default function LoginPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">密码</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
-                    placeholder="任意密码"
+                    placeholder="输入密码"
+                    required
                   />
                 </div>
               </div>

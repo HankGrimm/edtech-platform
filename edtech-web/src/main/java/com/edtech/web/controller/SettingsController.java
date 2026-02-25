@@ -3,6 +3,8 @@ package com.edtech.web.controller;
 import com.edtech.model.entity.UserSettings;
 import com.edtech.web.service.SettingsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -14,9 +16,12 @@ public class SettingsController {
 
     private final SettingsService settingsService;
 
-    // Helper to get current user ID (Mock)
     private Long getCurrentUserId() {
-        return 1L; 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof Long) {
+            return (Long) auth.getPrincipal();
+        }
+        return 1L;
     }
 
     @GetMapping

@@ -1,21 +1,15 @@
 package com.edtech.web.controller;
 
-import cn.hutool.crypto.digest.BCrypt;
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.edtech.model.entity.*;
 import com.edtech.model.mapper.*;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
+import com.edtech.web.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -37,14 +31,11 @@ public class AdminController {
     private final StudentExerciseLogMapper studentExerciseLogMapper;
     private final MistakeBookMapper mistakeBookMapper;
     private final KnowledgePrerequisiteMapper knowledgePrerequisiteMapper;
+    private final JwtTokenProvider tokenProvider;
+    private final PasswordEncoder passwordEncoder;
 
-    @Value("${jwt.secret:9a4f2c8d3b7a1e6f4c5d8e9a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c}")
-    private String jwtSecret;
-
-    // 管理员账号配置 (生产环境应存数据库)
     private static final String ADMIN_USERNAME = "admin";
-    // BCrypt加密的密码: admin123
-    private static final String ADMIN_PASSWORD_HASH = "$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH";
+    private static final String ADMIN_RAW_PASSWORD = "admin123";
 
     /**
      * 管理员登录
@@ -53,46 +44,29 @@ public class AdminController {
     public Map<String, Object> login(@RequestBody Map<String, String> request) {
         String username = request.get("username");
         String password = request.get("password");
-
-        log.info("🔐 管理员登录尝试: {}", username);
+        log.info("管理员登录尝试: {}", username);
 
         Map<String, Object> response = new HashMap<>();
 
-        // 验证用户名
-        if (!ADMIN_USERNAME.equals(username)) {
+        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, username)
+                .eq(User::getRole, "ADMIN"));
+
+        if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
             response.put("success", false);
             response.put("message", "用户名或密码错误");
             return response;
         }
 
-        // 验证密码 (简化处理，实际应使用BCrypt)
-        if (!"admin123".equals(password)) {
-            response.put("success", false);
-            response.put("message", "用户名或密码错误");
-            return response;
-        }
-
-        // 生成JWT Token
-        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("role", "ADMIN");
-        String token = Jwts.builder()
-                .setClaims(claims)
-                .setSubject(username)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000)) // 24小时
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
-
-        Map<String, Object> user = new HashMap<>();
-        user.put("username", username);
-        user.put("role", "ADMIN");
+        String token = tokenProvider.generateToken(user.getId(), user.getUsername(), "ADMIN", 1L);
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("username", user.getUsername());
+        userInfo.put("role", "ADMIN");
 
         response.put("success", true);
         response.put("token", token);
-        response.put("user", user);
-
-        log.info("✅ 管理员登录成功: {}", username);
+        response.put("user", userInfo);
+        log.info("管理员登录成功: {}", username);
         return response;
     }
 

@@ -89,3 +89,70 @@ CREATE TABLE IF NOT EXISTS `knowledge_prerequisite` (
   INDEX `idx_kp` (`knowledge_point_id`),
   INDEX `idx_prereq` (`prereq_point_id`)
 ) ENGINE=InnoDB COMMENT='知识点前驱关系表';
+
+-- ==========================================
+-- 7. User (用户表)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS `user` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(50) NOT NULL COMMENT '用户名',
+  `password` VARCHAR(255) NOT NULL COMMENT 'BCrypt 密码',
+  `email` VARCHAR(100) COMMENT '邮箱',
+  `nickname` VARCHAR(50) COMMENT '昵称',
+  `avatar` VARCHAR(255) DEFAULT '/avatars/default.png',
+  `role` VARCHAR(20) DEFAULT 'STUDENT' COMMENT 'ADMIN, TEACHER, STUDENT, PARENT',
+  `grade` VARCHAR(20) COMMENT '年级',
+  `school` VARCHAR(100) COMMENT '学校',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_username` (`username`)
+) ENGINE=InnoDB COMMENT='用户表';
+
+-- 默认用户 (密码均为 BCrypt 加密)
+-- student / 123456
+-- admin   / admin123
+-- parent  / 123456
+INSERT INTO `user` (`id`, `username`, `password`, `nickname`, `role`, `grade`) VALUES
+(1, 'student', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '小明同学', 'STUDENT', '高三'),
+(2, 'admin',   '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '管理员',   'ADMIN',   NULL),
+(3, 'parent',  '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '小明家长', 'PARENT',  NULL)
+ON DUPLICATE KEY UPDATE `username` = VALUES(`username`);
+
+-- ==========================================
+-- 8. Subscription Plan (订阅套餐)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS `subscription_plan` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(50) NOT NULL COMMENT '套餐名称',
+  `price` DECIMAL(10,2) NOT NULL COMMENT '价格',
+  `duration_days` INT NOT NULL COMMENT '有效天数',
+  `features` JSON COMMENT '功能列表',
+  `is_active` TINYINT(1) DEFAULT 1,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB COMMENT='订阅套餐';
+
+INSERT INTO `subscription_plan` (`id`, `name`, `price`, `duration_days`, `features`) VALUES
+(1, '月度Pro', 9.99,  30,  '["AI_TUTOR","UNLIMITED_PRACTICE","MISTAKE_ANALYSIS"]'),
+(2, '年度Pro', 99.00, 365, '["AI_TUTOR","UNLIMITED_PRACTICE","MISTAKE_ANALYSIS","OFFLINE_DOWNLOAD","PRIORITY_SUPPORT"]')
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+
+-- ==========================================
+-- 9. Platform Order (订单表)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS `platform_order` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `order_no` VARCHAR(64) NOT NULL UNIQUE COMMENT '订单号',
+  `user_id` BIGINT NOT NULL COMMENT '用户 ID',
+  `amount` DECIMAL(10,2) NOT NULL COMMENT '金额',
+  `status` VARCHAR(20) DEFAULT 'PENDING' COMMENT 'PENDING,PAID,CANCELLED,REFUNDED',
+  `payment_method` VARCHAR(20) COMMENT 'STRIPE,ALIPAY,MOCK',
+  `transaction_id` VARCHAR(100) COMMENT '支付流水号',
+  `plan_snapshot` JSON COMMENT '套餐快照',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `paid_at` DATETIME,
+  PRIMARY KEY (`id`),
+  INDEX `idx_user` (`user_id`),
+  INDEX `idx_status` (`status`)
+) ENGINE=InnoDB COMMENT='订单表';
