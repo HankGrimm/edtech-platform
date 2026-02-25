@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  BookOpen, Brain, Zap, Settings, ChevronDown, 
-  Target, TrendingUp, Award 
+import {
+  BookOpen, Brain, Zap, Settings, ChevronDown,
+  Target, TrendingUp, Award
 } from 'lucide-react';
 import type { GenerateQuestionParams } from '../../api/services/knowledge';
 
@@ -11,56 +11,54 @@ interface PracticeConfigCardProps {
   isLoading: boolean;
 }
 
+const RW_DOMAINS = [
+  'Information and Ideas',
+  'Craft and Structure',
+  'Expression of Ideas',
+  'Standard English Conventions',
+];
+
 export function PracticeConfigCard({ onGenerate, isLoading }: PracticeConfigCardProps) {
-  const [subject, setSubject] = useState('数学');
+  const [subject, setSubject] = useState('Reading & Writing');
+  const [domain, setDomain] = useState(RW_DOMAINS[0]);
   const [difficulty, setDifficulty] = useState('Medium');
-  const [knowledgePointId, setKnowledgePointId] = useState<number | undefined>();
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const subjects = [
-    { value: '数学', label: '数学', icon: '📐' },
-    { value: '物理', label: '物理', icon: '⚛️' },
-    { value: '化学', label: '化学', icon: '🧪' },
+    { value: 'Reading & Writing', label: 'Reading & Writing', icon: '📖' },
+    { value: 'Math', label: 'Math', icon: '📐' },
   ];
 
   const difficulties = [
-    { 
-      value: 'Easy', 
-      label: '基础巩固', 
+    {
+      value: 'Easy',
+      label: 'Easy',
       icon: <BookOpen className="w-4 h-4" />,
       color: 'bg-green-100 text-green-700 border-green-200',
-      description: '基础概念和公式应用'
+      description: 'Foundational concepts and direct application'
     },
-    { 
-      value: 'Medium', 
-      label: '稳步提升', 
+    {
+      value: 'Medium',
+      label: 'Medium',
       icon: <Target className="w-4 h-4" />,
       color: 'bg-blue-100 text-blue-700 border-blue-200',
-      description: '适中难度，理解+计算'
+      description: 'Moderate challenge with reasoning required'
     },
-    { 
-      value: 'Hard', 
-      label: '挑战进阶', 
+    {
+      value: 'Hard',
+      label: 'Hard',
       icon: <Award className="w-4 h-4" />,
       color: 'bg-purple-100 text-purple-700 border-purple-200',
-      description: '综合应用，深度思考'
+      description: 'Complex multi-step problems'
     },
-  ];
-
-  const knowledgePoints = [
-    { id: 101, name: '函数与导数' },
-    { id: 102, name: '三角函数' },
-    { id: 103, name: '数列' },
-    { id: 104, name: '立体几何' },
-    { id: 105, name: '解析几何' },
-    { id: 106, name: '概率统计' },
   ];
 
   const handleGenerate = () => {
     const params: GenerateQuestionParams = {
       subject,
       difficulty,
-      knowledgePointId: showAdvanced ? knowledgePointId : undefined,
+      domain: subject === 'Reading & Writing' ? domain : undefined,
+      source: 'opensat',
     };
     onGenerate(params);
   };
@@ -76,18 +74,16 @@ export function PracticeConfigCard({ onGenerate, isLoading }: PracticeConfigCard
           <Brain className="w-5 h-5 text-indigo-600" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-slate-800">🤖 AI智能出题</h3>
-          <p className="text-sm text-slate-500">根据你的学习状态个性化生成题目</p>
+          <h3 className="text-lg font-semibold text-slate-800">SAT Practice</h3>
+          <p className="text-sm text-slate-500">Real questions from OpenSAT, AI fallback for Math</p>
         </div>
       </div>
 
       <div className="space-y-4">
-        {/* 科目选择 */}
+        {/* Subject */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            科目选择
-          </label>
-          <div className="grid grid-cols-3 gap-2">
+          <label className="block text-sm font-medium text-slate-700 mb-2">Section</label>
+          <div className="grid grid-cols-2 gap-2">
             {subjects.map((subj) => (
               <button
                 key={subj.value}
@@ -105,11 +101,25 @@ export function PracticeConfigCard({ onGenerate, isLoading }: PracticeConfigCard
           </div>
         </div>
 
-        {/* 难度选择 */}
+        {/* Domain (R&W only) */}
+        {subject === 'Reading & Writing' && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Domain</label>
+            <select
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-white"
+            >
+              {RW_DOMAINS.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Difficulty */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            难度等级
-          </label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Difficulty</label>
           <div className="space-y-2">
             {difficulties.map((diff) => (
               <button
@@ -136,17 +146,17 @@ export function PracticeConfigCard({ onGenerate, isLoading }: PracticeConfigCard
           </div>
         </div>
 
-        {/* 高级选项 */}
+        {/* Advanced */}
         <div>
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
             className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-800 transition-colors"
           >
             <Settings className="w-4 h-4" />
-            高级选项
+            Advanced
             <ChevronDown className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
           </button>
-          
+
           {showAdvanced && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
@@ -154,26 +164,14 @@ export function PracticeConfigCard({ onGenerate, isLoading }: PracticeConfigCard
               exit={{ opacity: 0, height: 0 }}
               className="mt-3 p-3 bg-slate-50 rounded-lg"
             >
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                指定知识点 (可选)
-              </label>
-              <select
-                value={knowledgePointId || ''}
-                onChange={(e) => setKnowledgePointId(e.target.value ? Number(e.target.value) : undefined)}
-                className="w-full p-2 border border-slate-200 rounded-lg text-sm"
-              >
-                <option value="">自动选择</option>
-                {knowledgePoints.map((kp) => (
-                  <option key={kp.id} value={kp.id}>
-                    {kp.name}
-                  </option>
-                ))}
-              </select>
+              <p className="text-xs text-slate-500">
+                Math questions are sourced from OpenSAT when available, with AI generation as fallback (marked "[AI生成]").
+              </p>
             </motion.div>
           )}
         </div>
 
-        {/* 生成按钮 */}
+        {/* Generate button */}
         <button
           onClick={handleGenerate}
           disabled={isLoading}
@@ -186,24 +184,23 @@ export function PracticeConfigCard({ onGenerate, isLoading }: PracticeConfigCard
           {isLoading ? (
             <div className="flex items-center justify-center gap-2">
               <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin" />
-              AI正在思考中...
+              Loading question...
             </div>
           ) : (
             <div className="flex items-center justify-center gap-2">
               <Zap className="w-4 h-4" />
-              🎯 生成专属题目
+              Get Question
             </div>
           )}
         </button>
       </div>
 
-      {/* 提示信息 */}
       <div className="mt-4 p-3 bg-blue-50 rounded-lg">
         <div className="flex items-start gap-2">
           <TrendingUp className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
           <div className="text-xs text-blue-700">
-            <div className="font-medium mb-1">🤖 AI个性化说明</div>
-            <div>题目将根据你的历史学习数据、掌握程度和常见错误自动调整，确保每道题都精准匹配你的当前水平。</div>
+            <div className="font-medium mb-1">OpenSAT Questions</div>
+            <div>Reading &amp; Writing questions come directly from the OpenSAT database. Math uses OpenSAT first, with AI generation as fallback.</div>
           </div>
         </div>
       </div>

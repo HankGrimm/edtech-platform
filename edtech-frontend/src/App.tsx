@@ -11,6 +11,7 @@ import AchievementsPage from './pages/AchievementsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import DailyGoalsPage from './pages/DailyGoalsPage';
 import ParentDashboardPage from './pages/ParentDashboardPage';
+import ExamReportPage from './pages/ExamReportPage';
 import RequireAuth from './components/auth/RequireAuth';
 
 // Admin Pages
@@ -44,6 +45,7 @@ function App() {
           <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="daily-goals" element={<DailyGoalsPage />} />
           <Route path="parent" element={<ParentDashboardPage />} />
+          <Route path="exam-report" element={<ExamReportPage />} />
         </Route>
 
         {/* Admin Routes */}

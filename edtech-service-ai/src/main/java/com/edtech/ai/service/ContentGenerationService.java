@@ -172,6 +172,46 @@ public class ContentGenerationService {
         return callQwen(userPrompt);
     }
 
+    public String generateExamReport(java.util.List<java.util.Map<String, Object>> items, String subject) {
+        log.info("生成考试报告: 题目数={}, subject={}", items.size(), subject);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("你是一位SAT考试专家。请分析以下学生的答题情况，生成一份详细的个性化报告。\n\n");
+        sb.append("科目: ").append(subject != null ? subject : "综合").append("\n");
+        sb.append("题目总数: ").append(items.size()).append("\n\n");
+
+        for (int i = 0; i < items.size(); i++) {
+            java.util.Map<String, Object> item = items.get(i);
+            sb.append("题目").append(i + 1).append(":\n");
+            sb.append("  题干: ").append(item.get("stem")).append("\n");
+            sb.append("  正确答案: ").append(item.get("correctAnswer")).append("\n");
+            sb.append("  学生答案: ").append(item.get("userAnswer")).append("\n");
+            sb.append("  是否正确: ").append(Boolean.TRUE.equals(item.get("isCorrect")) ? "正确" : "错误").append("\n");
+            if (item.get("domain") != null) {
+                sb.append("  知识域: ").append(item.get("domain")).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("""
+请严格按照以下JSON格式输出报告，不要有任何额外文字：
+{
+  "total_score": <估算总分 400-1600>,
+  "rw_score": <阅读写作分 200-800>,
+  "math_score": <数学分 200-800>,
+  "percentile_estimate": "约 XX 分位",
+  "strengths": ["强项1", "强项2"],
+  "weaknesses": ["弱项1: 具体知识点", "弱项2"],
+  "wrong_questions_analysis": [
+    {"question_index": 1, "user_answer": "B", "correct": "C", "why_wrong": "...", "key_concept": "..."}
+  ],
+  "study_plan": "接下来两周建议：..."
+}
+""");
+
+        return callQwen(sb.toString());
+    }
+
     private String callQwen(String prompt) {
         String url = baseUrl + "/v1/chat/completions";
         

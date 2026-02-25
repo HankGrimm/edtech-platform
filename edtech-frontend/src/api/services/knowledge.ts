@@ -249,6 +249,8 @@ export interface GenerateQuestionParams {
     subject: string;
     knowledgePointId?: number;
     difficulty?: string;
+    domain?: string;
+    source?: string;
 }
 
 export async function generatePracticeQuestion(params: GenerateQuestionParams): Promise<QuestionResponse> {
@@ -287,10 +289,12 @@ export async function generatePracticeQuestion(params: GenerateQuestionParams): 
         
         // 调用新的AI专用接口
         const res = await request.post<any>('/ai/generate-question', {
-            studentId: 1, // 实际应从用户状态获取
+            studentId: 1,
             subject: params.subject,
             knowledgePointId: params.knowledgePointId,
-            difficulty: params.difficulty || 'Medium'
+            difficulty: params.difficulty || 'Medium',
+            domain: params.domain,
+            source: params.source || 'opensat'
         });
         
         // 检查是否是错误响应
@@ -345,6 +349,57 @@ export async function generatePracticeQuestion(params: GenerateQuestionParams): 
             strategyCode: 'ERROR' 
         };
     }
+}
+
+export interface ExamQuestionRecord {
+  stem: string;
+  correctAnswer: string;
+  userAnswer: string;
+  isCorrect: boolean;
+  domain?: string;
+}
+
+export interface WrongQuestionAnalysis {
+  question_index: number;
+  user_answer: string;
+  correct: string;
+  why_wrong: string;
+  key_concept: string;
+}
+
+export interface ExamReport {
+  total_score: number;
+  rw_score: number;
+  math_score: number;
+  percentile_estimate: string;
+  strengths: string[];
+  weaknesses: string[];
+  wrong_questions_analysis: WrongQuestionAnalysis[];
+  study_plan: string;
+}
+
+export async function generateExamReport(questions: ExamQuestionRecord[], subject: string): Promise<ExamReport> {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 2000));
+    return {
+      total_score: 1280,
+      rw_score: 650,
+      math_score: 630,
+      percentile_estimate: '约 85 分位',
+      strengths: ['Information and Ideas', 'Standard English Conventions'],
+      weaknesses: ['Craft and Structure: 修辞手法分析', 'Expression of Ideas: 段落逻辑'],
+      wrong_questions_analysis: [
+        { question_index: 2, user_answer: 'B', correct: 'C', why_wrong: '混淆了作者意图与文章主旨', key_concept: 'Central Idea' },
+      ],
+      study_plan: '建议每天练习 15 道 Craft and Structure 题目，重点复习修辞分析技巧。',
+    };
+  }
+  const res = await request.post<any>('/ai/exam-report', {
+    subject,
+    questions,
+  });
+  if (!res.data.success) throw new Error(res.data.message || 'Report generation failed');
+  return res.data.report as ExamReport;
 }
 
 /**

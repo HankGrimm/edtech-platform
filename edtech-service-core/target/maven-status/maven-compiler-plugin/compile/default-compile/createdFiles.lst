@@ -1,6 +1,0 @@
-com\edtech\core\mq\ReportConsumer.class
-com\edtech\core\mq\ReportProducer.class
-com\edtech\core\mq\PracticeConsumer.class
-com\edtech\core\config\RabbitConfig.class
-com\edtech\core\util\RedisUtils.class
-com\edtech\core\mq\PracticeProducer.class

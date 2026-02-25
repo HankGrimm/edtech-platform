@@ -1,101 +1,119 @@
 import { useEffect, useState } from 'react';
-import { getRandomQuestion, submitExerciseResult, getAiExplanation, generatePracticeQuestion, type GenerateQuestionParams } from '../api/services/knowledge';
+import { useNavigate } from 'react-router-dom';
+import {
+  getRandomQuestion, submitExerciseResult, getAiExplanation,
+  generatePracticeQuestion, generateExamReport,
+  type GenerateQuestionParams, type ExamQuestionRecord
+} from '../api/services/knowledge';
 import { QuestionCard, type QuestionData } from '../components/chat/QuestionCard';
 import { PracticeConfigCard } from '../components/practice/PracticeConfigCard';
 import { AnimatePresence, motion } from 'framer-motion';
 import Latex from 'react-latex-next';
 import 'katex/dist/katex.min.css';
 import confetti from 'canvas-confetti';
+import { ClipboardList } from 'lucide-react';
 
 interface AudioContextWindow extends Window {
   AudioContext?: typeof AudioContext;
   webkitAudioContext?: typeof AudioContext;
 }
 
+const EXAM_TOTAL = 10;
+
 export default function PracticePage() {
+  const navigate = useNavigate();
   const [question, setQuestion] = useState<QuestionData | null>(null);
   const [strategy, setStrategy] = useState<string>('');
   const [strategyCode, setStrategyCode] = useState<string>('');
-  const [loading, setLoading] = useState(false); // Default false to show config first? Or true and load random?
-  // Let's load random first as before, but allow override.
-  
+  const [loading, setLoading] = useState(false);
   const [currentParams, setCurrentParams] = useState<GenerateQuestionParams | null>(null);
   const [streak, setStreak] = useState(0);
   const [showCelebrate, setShowCelebrate] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
 
+  // Exam mode state
+  const [examMode, setExamMode] = useState(false);
+  const [examRecords, setExamRecords] = useState<ExamQuestionRecord[]>([]);
+  const [examAnswered, setExamAnswered] = useState(false); // current question answered?
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [currentDomain, setCurrentDomain] = useState<string | undefined>();
+
   const loadQuestion = (params?: GenerateQuestionParams, retryCount = 0) => {
     setLoading(true);
     setQuestion(null);
-    
-    // Use provided params, or fall back to currentParams (for "Next Question"), or null for random
-    const paramsToUse = params || currentParams;
+    setExamAnswered(false);
 
-    const promise = paramsToUse 
-        ? generatePracticeQuestion(paramsToUse)
-        : getRandomQuestion();
+    const paramsToUse = params || currentParams;
+    if (params?.domain) setCurrentDomain(params.domain);
+
+    const promise = paramsToUse
+      ? generatePracticeQuestion(paramsToUse)
+      : getRandomQuestion();
 
     promise.then(res => {
-        // 检查是否是错误响应
-        if (res.strategyCode === 'ERROR' && retryCount < 2) {
-            console.log(`🔄 AI出题失败，第${retryCount + 1}次重试...`);
-            setTimeout(() => {
-                loadQuestion(params, retryCount + 1);
-            }, 1000 * (retryCount + 1)); // 递增延迟重试
-            return;
-        }
-        
-        setQuestion(res.data);
-        setStrategy(res.strategy);
-        setStrategyCode(res.strategyCode);
-        setLoading(false);
-        
-        // Update current params only if new ones provided (sticky config)
-        if (params) setCurrentParams(params);
-        
-        // 如果是AI生成的题目，显示成功提示
-        if (res.strategyCode === 'AI_GENERATED') {
-            console.log('🎉 AI动态出题成功！题目已根据你的学习状态个性化生成');
-        }
+      if (res.strategyCode === 'ERROR' && retryCount < 2) {
+        setTimeout(() => loadQuestion(params, retryCount + 1), 1000 * (retryCount + 1));
+        return;
+      }
+      setQuestion(res.data);
+      setStrategy(res.strategy);
+      setStrategyCode(res.strategyCode);
+      setLoading(false);
+      if (params) setCurrentParams(params);
     }).catch(error => {
-        console.error('❌ 题目加载失败:', error);
-        setLoading(false);
-        
-        // 显示错误状态的题目
-        setQuestion({
-            id: Date.now(),
-            stem: "⚠️ 网络连接异常，请检查网络后重试",
-            options: ["A. 重新加载", "B. 切换网络", "C. 稍后重试", "D. 联系客服"],
-            correctAnswer: "A",
-            analysis: "请检查网络连接状态，或稍后重试。"
-        });
-        setStrategy('网络异常');
-        setStrategyCode('NETWORK_ERROR');
+      console.error('Question load failed:', error);
+      setLoading(false);
+      setQuestion({
+        id: Date.now(),
+        stem: '⚠️ Network error, please retry.',
+        options: ['A. Reload', 'B. Switch network', 'C. Try later', 'D. Contact support'],
+        correctAnswer: 'A',
+        analysis: 'Please check your network connection.'
+      });
+      setStrategy('Network Error');
+      setStrategyCode('NETWORK_ERROR');
     });
   };
 
   useEffect(() => {
-    loadQuestion(); // Load initial random question
+    loadQuestion();
   }, []);
 
   const handleManualGenerate = (params: GenerateQuestionParams) => {
+    if (examMode) {
+      // In exam mode, lock params after first question
+      loadQuestion(examRecords.length === 0 ? params : undefined);
+    } else {
       loadQuestion(params);
+    }
   };
-
 
   const handleSubmit = async (isCorrect: boolean, selectedOption: string) => {
     if (!question) return;
 
     try {
-        await submitExerciseResult({
-            studentId: 1, // Hardcoded for demo
-            questionId: question.id,
-            isCorrect,
-            duration: 30 // Mock duration
-        });
+      await submitExerciseResult({
+        studentId: 1,
+        questionId: question.id,
+        isCorrect,
+        duration: 30
+      });
     } catch (e) {
-        console.error("Submit failed", e);
+      console.error('Submit failed', e);
+    }
+
+    // Record for exam mode
+    if (examMode) {
+      const record: ExamQuestionRecord = {
+        stem: question.stem,
+        correctAnswer: question.correctAnswer,
+        userAnswer: selectedOption,
+        isCorrect,
+        domain: currentDomain,
+      };
+      setExamRecords(prev => [...prev, record]);
+      setExamAnswered(true);
     }
 
     setStreak(prev => {
@@ -104,61 +122,89 @@ export default function PracticePage() {
         triggerCelebrate();
         setShowCelebrate(true);
       }
-      if (!isCorrect) {
-        setShowCelebrate(false);
-      }
+      if (!isCorrect) setShowCelebrate(false);
       return next;
     });
 
     if (!isCorrect) {
-        setQuestion(prev => prev ? { ...prev, analysis: "🔄 AI 正在生成智能解析，请稍候..." } : null);
-        try {
-            const explanation = await getAiExplanation(question.stem, selectedOption, question.correctAnswer);
-            setQuestion(prev => prev ? { ...prev, analysis: explanation } : null);
-            setExplanation(explanation);
-            setShowExplanation(true);
-        } catch {
-            const fallback = "❌ 解析生成失败，请重试。";
-            setQuestion(prev => prev ? { ...prev, analysis: fallback } : null);
-            setExplanation(fallback);
-            setShowExplanation(true);
-        }
+      setQuestion(prev => prev ? { ...prev, analysis: '🔄 AI generating analysis...' } : null);
+      try {
+        const exp = await getAiExplanation(question.stem, selectedOption, question.correctAnswer);
+        setQuestion(prev => prev ? { ...prev, analysis: exp } : null);
+        setExplanation(exp);
+        setShowExplanation(true);
+      } catch {
+        const fallback = '❌ Analysis unavailable, please retry.';
+        setQuestion(prev => prev ? { ...prev, analysis: fallback } : null);
+        setExplanation(fallback);
+        setShowExplanation(true);
+      }
     }
   };
 
+  const handleFinishExam = async () => {
+    setGeneratingReport(true);
+    try {
+      const subject = currentParams?.subject || 'Reading & Writing';
+      const report = await generateExamReport(examRecords, subject);
+      navigate('/exam-report', { state: { report } });
+    } catch (e) {
+      console.error('Report generation failed:', e);
+      setGeneratingReport(false);
+    }
+  };
+
+  const toggleExamMode = () => {
+    setExamMode(prev => !prev);
+    setExamRecords([]);
+    setExamAnswered(false);
+  };
+
+  const examDone = examMode && examRecords.length >= EXAM_TOTAL;
+
   if (loading && !question) return (
     <div className="max-w-3xl mx-auto space-y-6 p-8">
-        <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-slate-200 rounded w-1/3"></div>
-            <div className="h-64 bg-slate-200 rounded"></div>
-        </div>
-        <div className="text-center text-slate-500">AI is generating your personalized question...</div>
+      <div className="animate-pulse space-y-4">
+        <div className="h-8 bg-slate-200 rounded w-1/3" />
+        <div className="h-64 bg-slate-200 rounded" />
+      </div>
+      <div className="text-center text-slate-500">Loading question...</div>
     </div>
   );
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-3xl font-bold text-slate-800">Smart Practice</h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Exam mode toggle */}
+          <button
+            onClick={toggleExamMode}
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+              examMode
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-slate-600 border-slate-300 hover:border-indigo-400'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4" />
+            {examMode ? `Exam Mode (${examRecords.length}/${EXAM_TOTAL})` : 'Exam Mode'}
+          </button>
+
           {strategy && (
-            <span
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm ${
-                strategyCode === 'CORRECTION_DRILL'
+            <span className={`px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm ${
+              strategyCode === 'OPENSAT'
+                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                : strategyCode === 'CORRECTION_DRILL'
                   ? 'bg-red-100 text-red-700 border border-red-200 animate-pulse'
-                  : strategyCode === 'MANUAL'
-                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                    : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-              }`}
-            >
-              {strategyCode === 'CORRECTION_DRILL' ? '🔥 ' : strategyCode === 'MANUAL' ? '🛠️ ' : '🎯 '}
-              Current Strategy: {strategy}
+                  : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+            }`}>
+              {strategyCode === 'OPENSAT' ? '📋 ' : strategyCode === 'CORRECTION_DRILL' ? '🔥 ' : '🤖 '}
+              {strategy}
             </span>
           )}
           {streak > 0 && (
             <div className="flex items-center gap-1 rounded-full bg-orange-50 px-4 py-1.5 text-sm font-semibold text-orange-600 shadow-sm">
-              <span>⚡ Combo</span>
-              <span>x{streak}</span>
+              <span>⚡ Combo x{streak}</span>
             </div>
           )}
         </div>
@@ -171,35 +217,58 @@ export default function PracticePage() {
 
         <div className="space-y-6">
           {question && (
-            <QuestionCard
-              question={question}
-              onSubmit={handleSubmit}
-            />
+            <QuestionCard question={question} onSubmit={handleSubmit} />
           )}
 
           {question && (
-            <div className="flex justify-end gap-4">
-              {currentParams && (
-                <button
-                  onClick={() => {
-                    setCurrentParams(null);
-                    loadQuestion();
-                  }}
-                  className="px-6 py-2 bg-white text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  Switch to Auto Mode
-                </button>
+            <div className="flex justify-end gap-4 flex-wrap">
+              {examMode ? (
+                examDone ? (
+                  <button
+                    onClick={handleFinishExam}
+                    disabled={generatingReport}
+                    className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 shadow-lg disabled:opacity-60 transition-all"
+                  >
+                    {generatingReport ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        Generating Report...
+                      </span>
+                    ) : '📊 View My Report'}
+                  </button>
+                ) : (
+                  examAnswered && (
+                    <button
+                      onClick={() => loadQuestion()}
+                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                    >
+                      Next Question ({examRecords.length}/{EXAM_TOTAL})
+                    </button>
+                  )
+                )
+              ) : (
+                <>
+                  {currentParams && (
+                    <button
+                      onClick={() => { setCurrentParams(null); loadQuestion(); }}
+                      className="px-6 py-2 bg-white text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      Switch to Auto Mode
+                    </button>
+                  )}
+                  <button
+                    onClick={() => loadQuestion()}
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                  >
+                    {currentParams ? 'Next Targeted Question' : 'Next Question'}
+                  </button>
+                </>
               )}
-              <button
-                onClick={() => loadQuestion()}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-              >
-                {currentParams ? 'Next Targeted Question' : 'Next Question'}
-              </button>
             </div>
           )}
         </div>
       </div>
+
       <AnimatePresence>
         {showCelebrate && (
           <motion.div
@@ -217,7 +286,7 @@ export default function PracticePage() {
               <div className="space-y-3 text-center">
                 <div className="text-4xl">🎉</div>
                 <div className="text-2xl font-bold text-indigo-600">Combo x{streak}</div>
-                <div className="text-sm text-slate-600">保持状态，再接再厉！</div>
+                <div className="text-sm text-slate-600">Keep it up!</div>
               </div>
             </motion.div>
           </motion.div>
@@ -239,12 +308,12 @@ export default function PracticePage() {
               className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl"
             >
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-slate-800">AI 详细解析</h3>
+                <h3 className="text-lg font-bold text-slate-800">AI Explanation</h3>
                 <button
                   onClick={() => setShowExplanation(false)}
                   className="rounded-full px-3 py-1 text-sm font-semibold text-slate-500 hover:bg-slate-100"
                 >
-                  关闭
+                  Close
                 </button>
               </div>
               <div className="prose max-w-none text-slate-800">
@@ -259,16 +328,8 @@ export default function PracticePage() {
 }
 
 function triggerCelebrate() {
-  confetti({
-    particleCount: 80,
-    spread: 70,
-    origin: { y: 0.7 },
-  });
-  try {
-    playBeep();
-  } catch {
-    return;
-  }
+  confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 } });
+  try { playBeep(); } catch { return; }
 }
 
 function playBeep() {

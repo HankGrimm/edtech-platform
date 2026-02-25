@@ -1,0 +1,26 @@
+# Maven build artifacts
+target/
+*.class
+
+# Frontend build & dependencies
+edtech-frontend/node_modules/
+edtech-frontend/dist/
+
+# Environment files (contain secrets)
+.env
+
+# IDE & editor files
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Claude Code internal
+.claude/
