@@ -3,8 +3,10 @@ package com.edtech.web.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.edtech.model.entity.KnowledgePoint;
 import com.edtech.model.entity.KnowledgeState;
+import com.edtech.model.entity.StudentExerciseLog;
 import com.edtech.model.mapper.KnowledgePointMapper;
 import com.edtech.model.mapper.KnowledgeStateMapper;
+import com.edtech.model.mapper.StudentExerciseLogMapper;
 import com.edtech.model.vo.KnowledgeStateVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,7 @@ public class DashboardController {
 
     private final KnowledgeStateMapper knowledgeStateMapper;
     private final KnowledgePointMapper knowledgePointMapper;
+    private final StudentExerciseLogMapper studentExerciseLogMapper;
 
     /**
      * 获取学生知识状态雷达图数据
@@ -82,16 +85,27 @@ public class DashboardController {
                     .mapToDouble(BigDecimal::doubleValue)
                     .average()
                     .orElse(0.0);
-            
-            // Simple Linear Model: Score = AvgProb * 100
-            // In reality, this would use weights (alpha, beta) trained on historical data
             predictedScore = avgProb * 100;
+        }
+
+        // 根据答题记录数动态计算置信度：记录越多越可信，上限 0.95
+        long practiceCount = studentExerciseLogMapper.selectCount(
+                new LambdaQueryWrapper<StudentExerciseLog>()
+                        .eq(StudentExerciseLog::getStudentId, studentId));
+        double confidence = Math.min(0.95, 0.3 + practiceCount * 0.01);
+        // 知识点覆盖率也影响置信度
+        if (!states.isEmpty()) {
+            long totalKp = knowledgePointMapper.selectCount(null);
+            if (totalKp > 0) {
+                double coverage = (double) states.size() / totalKp;
+                confidence = Math.min(0.95, confidence * (0.5 + 0.5 * coverage));
+            }
         }
 
         Map<String, Object> result = new HashMap<>();
         result.put("studentId", studentId);
         result.put("predictedScore", Math.round(predictedScore));
-        result.put("confidence", 0.85); // Mock confidence
+        result.put("confidence", Math.round(confidence * 100.0) / 100.0);
         return result;
     }
 }

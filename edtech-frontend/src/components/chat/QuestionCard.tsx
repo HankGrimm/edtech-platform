@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Latex from 'react-latex-next';
 import 'katex/dist/katex.min.css';
-import { Check, X } from 'lucide-react';
+import { Check, X, Lightbulb } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export interface QuestionData {
   id: number;
   stem: string;
-  options: string[]; // ["A. xxxx", "B. xxxx"]
-  correctAnswer: string; // "A" or "B" or "0" (index)
+  options: string[];
+  correctAnswer: string;
   analysis: string;
 }
 
@@ -17,22 +17,22 @@ interface QuestionCardProps {
   question: QuestionData;
   onSubmit: (isCorrect: boolean, selectedOption: string) => void;
   showHint?: boolean;
+  onRequestExplanation?: () => void;
+  explanationLoading?: boolean;
 }
 
-export function QuestionCard({ question, onSubmit, showHint = true }: QuestionCardProps) {
+export function QuestionCard({ question, onSubmit, showHint = true, onRequestExplanation, explanationLoading }: QuestionCardProps) {
   const [selected, setSelected] = useState<number | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
-  const handleSubmit = () => {
-    if (selected === null) return;
+  const handleSelect = (index: number) => {
+    if (isSubmitted) return;
+    setSelected(index);
     setIsSubmitted(true);
-
-    // Assuming correct answer is index-based (0, 1, 2, 3) or Letter (A, B, C, D)
-    // Here we handle Letter case: "A" -> 0
     const correctIndex = question.correctAnswer.charCodeAt(0) - 'A'.charCodeAt(0);
-    const isCorrect = selected === correctIndex;
-    
-    onSubmit(isCorrect, String.fromCharCode('A'.charCodeAt(0) + selected));
+    const isCorrect = index === correctIndex;
+    onSubmit(isCorrect, String.fromCharCode('A'.charCodeAt(0) + index));
   };
 
   return (
@@ -69,7 +69,7 @@ export function QuestionCard({ question, onSubmit, showHint = true }: QuestionCa
               key={index}
               whileTap={{ scale: 0.98 }}
               disabled={isSubmitted}
-              onClick={() => setSelected(index)}
+              onClick={() => handleSelect(index)}
               className={clsx(
                 "group relative w-full rounded-2xl border px-5 py-4 text-left transition-all duration-200",
                 "border-slate-200",
@@ -104,27 +104,31 @@ export function QuestionCard({ question, onSubmit, showHint = true }: QuestionCa
       {/* 3. Footer / Action */}
       <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-8 py-5">
         <span className="text-sm text-slate-400">
-          {isSubmitted ? (showHint ? "解析已显示在下方" : "已提交") : "请选择一个选项"}
+          {isSubmitted ? "已提交" : "请选择一个选项"}
         </span>
-        
-        <AnimatePresence>
-          {!isSubmitted && selected !== null && (
-            <motion.button
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              onClick={handleSubmit}
-              className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition-transform hover:scale-105 active:scale-95"
-            >
-              提交答案
-            </motion.button>
-          )}
-        </AnimatePresence>
+
+        <div className="flex items-center gap-2">
+          <AnimatePresence>
+            {isSubmitted && showHint && !showAnalysis && (
+              <motion.button
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                onClick={() => { setShowAnalysis(true); if (onRequestExplanation) onRequestExplanation(); }}
+                disabled={explanationLoading}
+                className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+              >
+                <Lightbulb className="w-4 h-4" />
+                解释答案
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
-      {/* 4. Analysis (Reveal after submit, only if showHint enabled) */}
+      {/* 4. Analysis — only shown after user clicks "解释答案" */}
       <AnimatePresence>
-        {isSubmitted && showHint && (
+        {isSubmitted && showAnalysis && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -135,7 +139,10 @@ export function QuestionCard({ question, onSubmit, showHint = true }: QuestionCa
               <div className="leading-relaxed opacity-90">
                 {question.analysis
                   ? <Latex>{question.analysis}</Latex>
-                  : <span className="flex items-center gap-2 text-slate-400 text-sm"><span className="w-3 h-3 border-2 border-slate-500 border-t-indigo-400 rounded-full animate-spin" />AI 解析生成中...</span>
+                  : <span className="flex items-center gap-2 text-slate-400 text-sm">
+                      <span className="w-3 h-3 border-2 border-slate-500 border-t-indigo-400 rounded-full animate-spin" />
+                      AI 解析生成中...
+                    </span>
                 }
               </div>
             </div>

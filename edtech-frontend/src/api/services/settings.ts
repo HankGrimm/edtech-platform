@@ -26,8 +26,6 @@ export interface UserSettings {
     notifyBrowser: boolean;
     notifyEmail: boolean;
 
-    theme: 'light' | 'dark' | 'system';
-    fontSize: 'small' | 'medium' | 'large';
     animationsEnabled: boolean;
     soundEnabled: boolean;
 
@@ -50,7 +48,6 @@ const MOCK_SETTINGS: UserSettings = {
     notifyAchievement: true,
     notifyBrowser: true,
     notifyEmail: false,
-    theme: 'light',
     fontSize: 'medium',
     animationsEnabled: true,
     soundEnabled: true,
@@ -81,4 +78,46 @@ export const bindParent = async (code: string): Promise<void> => {
         return new Promise(resolve => setTimeout(resolve, 500));
     }
     await request.post('/settings/bind-parent', { code });
+};
+
+export const uploadAvatar = async (file: File): Promise<string> => {
+    if (ENABLE_MOCK) {
+        return new Promise(resolve => setTimeout(() => resolve(URL.createObjectURL(file)), 500));
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await request.post<{ success: boolean; avatarUrl: string }>('/auth/upload-avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data.avatarUrl;
+};
+
+export const updatePassword = async (oldPassword: string, newPassword: string): Promise<void> => {
+    if (ENABLE_MOCK) {
+        console.log('[Mock] Update Password');
+        return new Promise(resolve => setTimeout(resolve, 500));
+    }
+    await request.put('/auth/update-password', { oldPassword, newPassword });
+};
+
+export const getProfile = async (): Promise<{ phone: string; email: string }> => {
+    if (ENABLE_MOCK) return { phone: '138****8888', email: '' };
+    const res = await request.get<{ phone: string; email: string }>('/auth/profile');
+    return res.data;
+};
+
+export const updatePhone = async (phone: string): Promise<void> => {
+    if (ENABLE_MOCK) {
+        console.log('[Mock] Update Phone:', phone);
+        return new Promise(resolve => setTimeout(resolve, 500));
+    }
+    await request.put('/auth/update-phone', { phone });
+};
+
+export const updateEmail = async (email: string): Promise<void> => {
+    if (ENABLE_MOCK) {
+        console.log('[Mock] Update Email:', email);
+        return new Promise(resolve => setTimeout(resolve, 500));
+    }
+    await request.put('/auth/update-email', { email });
 };

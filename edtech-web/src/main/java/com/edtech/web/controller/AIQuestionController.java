@@ -19,6 +19,7 @@ import java.io.BufferedReader;
 import java.io.StringReader;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -183,6 +184,59 @@ public class AIQuestionController {
             errorResponse.put("success", false);
             return errorResponse;
         }
+    }
+
+    @PostMapping("/generate-batch")
+    public Map<String, Object> generateBatch(@RequestBody GenerateBatchRequest request) {
+        int total = request.total != null ? request.total : 27;
+        String subject = request.subject != null ? request.subject : "Reading & Writing";
+        boolean isEnglish = "Reading & Writing".equalsIgnoreCase(subject);
+        boolean isMath = "Math".equalsIgnoreCase(subject);
+        List<Map<String, Object>> questions = new ArrayList<>();
+
+        try {
+            if (isEnglish) {
+                String[] domains = {"Information and Ideas", "Craft and Structure", "Expression of Ideas", "Standard English Conventions"};
+                int perDomain = total / domains.length;
+                int remainder = total % domains.length;
+                for (int d = 0; d < domains.length; d++) {
+                    int count = perDomain + (d < remainder ? 1 : 0);
+                    List<GeneratedQuestionVO> list = openSatService.fetchEnglishQuestions(domains[d], count);
+                    for (GeneratedQuestionVO vo : list) {
+                        questions.add(voToMap(vo, "OPENSAT", domains[d]));
+                    }
+                }
+            } else if (isMath) {
+                List<GeneratedQuestionVO> list = openSatService.fetchMathQuestions(total);
+                for (GeneratedQuestionVO vo : list) {
+                    questions.add(voToMap(vo, "OPENSAT", null));
+                }
+            }
+        } catch (Exception e) {
+            log.error("批量出题失败", e);
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("questions", questions);
+        response.put("total", questions.size());
+        return response;
+    }
+
+    private Map<String, Object> voToMap(GeneratedQuestionVO vo, String strategyCode, String domain) {
+        Map<String, Object> q = new HashMap<>();
+        q.put("id", System.nanoTime());
+        q.put("stem", vo.getStem());
+        q.put("options", vo.getOptions());
+        q.put("correctAnswer", vo.getCorrectAnswer());
+        q.put("analysis", vo.getAnalysis() != null ? vo.getAnalysis() : "");
+        q.put("strategyCode", strategyCode);
+        q.put("domain", domain);
+        return q;
+    }
+
+    public static class GenerateBatchRequest {
+        public String subject;
+        public Integer total;
     }
 
     public static class GenerateQuestionRequest {

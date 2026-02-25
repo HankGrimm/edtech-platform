@@ -66,14 +66,17 @@ export default function DashboardPage() {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const userId = Number(localStorage.getItem('userId') || '1');
+  const username = localStorage.getItem('username') || '同学';
+
   useEffect(() => {
     async function fetchData() {
       try {
         const [data, pred, goal, stats] = await Promise.all([
-          getKnowledgeRadar(1),
-          getPrediction(1),
-          getTodayGoal(1),
-          getUserStats(1),
+          getKnowledgeRadar(userId),
+          getPrediction(userId),
+          getTodayGoal(userId),
+          getUserStats(userId),
         ]);
         setRadarData(data);
         setPrediction(pred);
@@ -105,7 +108,7 @@ export default function DashboardPage() {
       <header className="mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">早上好，小明同学！</h1>
+            <h1 className="text-3xl font-bold text-slate-800">早上好，{username}！</h1>
             <p className="text-slate-500 mt-1">继续保持，你已经连续学习 <span className="text-indigo-600 font-semibold">{userStats?.currentStreak || 0}</span> 天了！</p>
           </div>
           <div className="hidden md:flex items-center gap-4">

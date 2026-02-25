@@ -28,17 +28,14 @@ request.interceptors.request.use(
 
 // --- Response Interceptor ---
 request.interceptors.response.use(
-  (response: AxiosResponse) => {
-    // You can handle global error codes here (e.g. 401 logout)
-    return response;
-  },
+  (response: AxiosResponse) => response,
   (error) => {
-    // If Mock is enabled, we might want to suppress network errors and return mock data in Service layer
-    // But typically axios throws error first. 
-    // We will handle "Mock Fallback" in the service layer specifically.
-    if (error.response && error.response.status === 401) {
-      // Redirect to login or clear token
-      console.warn('Unauthorized, please login.');
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('username');
+      localStorage.removeItem('role');
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

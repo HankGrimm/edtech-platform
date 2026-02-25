@@ -23,6 +23,8 @@ public class User implements Serializable {
 
     private String email;
 
+    private String phone;
+
     private String nickname;
 
     private String avatar;
@@ -35,6 +37,8 @@ public class User implements Serializable {
     private String grade;
 
     private String school;
+
+    private String inviteCode;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

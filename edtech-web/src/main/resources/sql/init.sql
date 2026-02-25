@@ -15,15 +15,18 @@ CREATE TABLE IF NOT EXISTS `user` (
   `username` VARCHAR(50) NOT NULL COMMENT '用户名',
   `password` VARCHAR(255) NOT NULL COMMENT 'BCrypt 密码',
   `email` VARCHAR(100) COMMENT '邮箱',
+  `phone` VARCHAR(20) COMMENT '手机号',
   `nickname` VARCHAR(50) COMMENT '昵称',
   `avatar` VARCHAR(255) DEFAULT '/avatars/default.png',
   `role` VARCHAR(20) DEFAULT 'STUDENT' COMMENT 'ADMIN, TEACHER, STUDENT, PARENT',
   `grade` VARCHAR(20) COMMENT '年级',
   `school` VARCHAR(100) COMMENT '学校',
+  `invite_code` VARCHAR(20) DEFAULT NULL COMMENT '邀请码(家长注册后生成)',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_username` (`username`)
+  UNIQUE KEY `uk_username` (`username`),
+  UNIQUE KEY `uk_invite_code` (`invite_code`)
 ) ENGINE=InnoDB COMMENT='用户表';
 
 -- 默认用户 (密码均为 123456 的 BCrypt 哈希)
@@ -370,3 +373,9 @@ CREATE TABLE IF NOT EXISTS `learning_resource` (
 ) ENGINE=InnoDB COMMENT='学习资源';
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ==========================================
+-- Migration: Add invite_code to user table
+-- ==========================================
+ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `invite_code` VARCHAR(20) DEFAULT NULL COMMENT '邀请码(家长注册后生成)';
+ALTER TABLE `user` ADD UNIQUE KEY IF NOT EXISTS `uk_invite_code` (`invite_code`);

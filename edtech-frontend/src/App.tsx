@@ -14,6 +14,7 @@ import DailyGoalsPage from './pages/DailyGoalsPage';
 import ParentDashboardPage from './pages/ParentDashboardPage';
 import ExamReportPage from './pages/ExamReportPage';
 import RequireAuth from './components/auth/RequireAuth';
+import RedirectIfAuth from './components/auth/RedirectIfAuth';
 
 // Admin Pages
 import AdminLoginPage from './pages/admin/AdminLoginPage';
@@ -30,8 +31,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={<RedirectIfAuth><LandingPage /></RedirectIfAuth>} />
+        <Route path="/login" element={<RedirectIfAuth><LoginPage /></RedirectIfAuth>} />
         <Route path="/practice" element={<PracticePage />} />
 
         {/* Protected Student Routes */}

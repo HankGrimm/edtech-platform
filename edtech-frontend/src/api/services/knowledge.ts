@@ -253,13 +253,8 @@ export async function getKnowledgeRadar(studentId: number): Promise<KnowledgeSta
     await new Promise(resolve => setTimeout(resolve, 500));
     return MOCK_RADAR_DATA;
   }
-  try {
-    const res = await request.get<KnowledgeStateVO[]>(`/dashboard/radar/${studentId}`);
-    return res.data;
-  } catch (error) {
-    console.error("Failed to fetch radar data, falling back to mock", error);
-    return MOCK_RADAR_DATA; // Fallback to mock on error
-  }
+  const res = await request.get<KnowledgeStateVO[]>(`/dashboard/radar/${studentId}`);
+  return res.data;
 }
 
 /**
@@ -371,6 +366,21 @@ export async function generatePracticeQuestion(params: GenerateQuestionParams): 
             strategyCode: 'ERROR' 
         };
     }
+}
+
+export interface BatchQuestionItem {
+  id: number;
+  stem: string;
+  options: string[];
+  correctAnswer: string;
+  analysis: string;
+  strategyCode: string;
+  domain?: string;
+}
+
+export async function generateBatchQuestions(subject: string, total: number): Promise<BatchQuestionItem[]> {
+  const res = await request.post<{ questions: BatchQuestionItem[]; total: number }>('/ai/generate-batch', { subject, total });
+  return res.data.questions;
 }
 
 export interface ExamQuestionRecord {

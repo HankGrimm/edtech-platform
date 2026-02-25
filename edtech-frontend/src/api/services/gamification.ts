@@ -238,7 +238,20 @@ export async function getCalendarData(userId: number, days: number = 90): Promis
   }
 }
 
-export async function getMistakeList(studentId: number, page = 1, size = 10, knowledgePointId?: number, keyword?: string) {
+export async function resolveMistake(mistakeId: number): Promise<{ success: boolean; message: string }> {
+  if (USE_MOCK) {
+    return { success: true, message: '已标记为掌握' };
+  }
+  try {
+    const res = await request.post<{ success: boolean; message: string }>(`/mistakes/resolve/${mistakeId}`);
+    return res.data;
+  } catch (e) {
+    console.error("Resolve mistake failed", e);
+    return { success: false, message: '操作失败' };
+  }
+}
+
+export async function getMistakeList(studentId: number, page = 1, size = 10, knowledgePointId?: number, keyword?: string, sortBy?: string) {
   if (USE_MOCK) {
     const mockMistakes: MistakeItem[] = [
       { id: 1, questionId: 101, errorCount: 3, lastErrorTime: '2024-12-13T10:30:00', isResolved: 0, content: '若 $\\sin \\alpha = \\frac{1}{3}$，则 $\\cos^2 \\alpha = ?$', difficulty: 0.6, knowledgePointId: 2, knowledgePointName: '三角函数', options: ['A. 8/9', 'B. 1/9', 'C. 2/3', 'D. 1/3'], correctAnswer: 'A' },
@@ -248,7 +261,7 @@ export async function getMistakeList(studentId: number, page = 1, size = 10, kno
     return { list: mockMistakes, total: 15, page, size };
   }
   try {
-    const res = await request.get(`/mistakes/list/${studentId}`, { params: { page, size, knowledgePointId, keyword } });
+    const res = await request.get(`/mistakes/list/${studentId}`, { params: { page, size, knowledgePointId, keyword, sortBy } });
     return res.data;
   } catch (e) {
     console.error("Fetch mistakes failed", e);

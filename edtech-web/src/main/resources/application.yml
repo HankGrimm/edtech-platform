@@ -59,6 +59,14 @@ saas:
   tenant:
     default-plan: FREE
 
+# OSS Configuration
+oss:
+  endpoint: ${OSS_ENDPOINT:https://oss-cn-hangzhou.aliyuncs.com}
+  access-key-id: ${OSS_ACCESS_KEY_ID:your_access_key_id}
+  access-key-secret: ${OSS_ACCESS_KEY_SECRET:your_access_key_secret}
+  bucket-name: ${OSS_BUCKET_NAME:your_bucket_name}
+  url-prefix: ${OSS_URL_PREFIX:https://your_bucket_name.oss-cn-hangzhou.aliyuncs.com}
+
 management:
   endpoints:
     web:

@@ -2,8 +2,10 @@ package com.edtech.web.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.edtech.model.entity.ParentBinding;
+import com.edtech.model.entity.User;
 import com.edtech.model.entity.UserSettings;
 import com.edtech.model.mapper.ParentBindingMapper;
+import com.edtech.model.mapper.UserMapper;
 import com.edtech.model.mapper.UserSettingsMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,7 @@ public class SettingsService {
 
     private final UserSettingsMapper settingsMapper;
     private final ParentBindingMapper bindingMapper;
+    private final UserMapper userMapper;
 
     public UserSettings getSettings(Long userId) {
         UserSettings settings = settingsMapper.selectById(userId);
@@ -37,27 +40,29 @@ public class SettingsService {
     }
 
     public void bindParent(Long studentId, String inviteCode) {
-        // Mock validation: Invite code must be "PARENT123" or similar
-        // In real app, we'd lookup parent by code
-        if (!"PARENT888".equals(inviteCode)) {
-            throw new RuntimeException("Invalid invitation code");
+        // 通过邀请码查找家长用户
+        User parent = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getInviteCode, inviteCode)
+                .eq(User::getRole, "PARENT"));
+        if (parent == null) {
+            throw new RuntimeException("邀请码无效，请确认家长已生成邀请码");
         }
-        
-        // Mock parent ID
-        Long parentId = 999L; 
+
+        // 检查是否已绑定
+        Long existing = bindingMapper.selectCount(new LambdaQueryWrapper<ParentBinding>()
+                .eq(ParentBinding::getStudentId, studentId)
+                .eq(ParentBinding::getParentId, parent.getId()));
+        if (existing > 0) {
+            throw new RuntimeException("已绑定该家长账号");
+        }
 
         ParentBinding binding = new ParentBinding();
         binding.setStudentId(studentId);
-        binding.setParentId(parentId);
+        binding.setParentId(parent.getId());
         binding.setStatus("ACTIVE");
         binding.setPermissions("{\"radar\":true,\"history\":true,\"report\":true}");
         binding.setDailyTimeLimit(120);
-        
-        try {
-            bindingMapper.insert(binding);
-        } catch (Exception e) {
-            throw new RuntimeException("Already bound or system error");
-        }
+        bindingMapper.insert(binding);
     }
 
     private UserSettings createDefaultSettings(Long userId) {

@@ -1,11 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
-interface RequireAuthProps {
-  children: ReactNode;
-}
-
-export default function RequireAuth({ children }: RequireAuthProps) {
+export default function RequireAuth({ children }: { children: ReactNode }) {
   const token = localStorage.getItem('token');
   const location = useLocation();
 
@@ -13,5 +9,5 @@ export default function RequireAuth({ children }: RequireAuthProps) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return children;
+  return <>{children}</>;
 }

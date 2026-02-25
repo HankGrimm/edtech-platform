@@ -1,34 +1,9 @@
 import type { TabProps } from './types';
-import { Sun, Moon, Monitor, Type, Zap, Volume2 } from 'lucide-react';
+import { Type, Zap, Volume2 } from 'lucide-react';
 
 export default function TabAppearance({ settings, onUpdate }: TabProps) {
     return (
         <div className="space-y-8">
-            {/* Theme */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-slate-800">主题模式</h3>
-                <div className="grid grid-cols-3 gap-4">
-                    {[
-                        { id: 'light', label: '浅色', icon: Sun },
-                        { id: 'dark', label: '深色', icon: Moon },
-                        { id: 'system', label: '跟随系统', icon: Monitor },
-                    ].map(item => (
-                        <button
-                            key={item.id}
-                            onClick={() => onUpdate({ theme: item.id as any })}
-                            className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-                                settings.theme === item.id 
-                                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700' 
-                                    : 'border-slate-200 hover:border-slate-300 text-slate-600'
-                            }`}
-                        >
-                            <item.icon className="w-6 h-6" />
-                            <span className="text-sm font-medium">{item.label}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
-
             {/* Font Size */}
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">

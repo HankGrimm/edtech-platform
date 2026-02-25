@@ -166,7 +166,7 @@ export default function LandingPage() {
           <motion.button
             whileHover={{ scale: 1.04, boxShadow: '0 20px 40px rgba(139,92,246,0.35)' }}
             whileTap={{ scale: 0.96 }}
-            onClick={() => navigate('/practice')}
+            onClick={() => navigate('/app/practice')}
             className="flex items-center gap-2.5 px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-500 text-white font-semibold text-base shadow-xl shadow-violet-500/25 transition-shadow duration-300"
           >
             立即开始学习
@@ -285,7 +285,7 @@ export default function LandingPage() {
           <motion.button
             whileHover={{ scale: 1.04, boxShadow: '0 20px 40px rgba(139,92,246,0.3)' }}
             whileTap={{ scale: 0.96 }}
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/login?mode=register')}
             className="inline-flex items-center gap-2.5 px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-500 text-white font-semibold text-base shadow-lg shadow-violet-500/20 transition-shadow duration-300"
           >
             免费开始

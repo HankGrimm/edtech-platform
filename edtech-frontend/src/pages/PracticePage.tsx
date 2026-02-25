@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   getRandomQuestion, submitExerciseResult, getAiExplanationStream,
-  generatePracticeQuestion, generateExamReport,
-  type GenerateQuestionParams, type ExamQuestionRecord
+  generatePracticeQuestion, generateExamReport, generateBatchQuestions,
+  type GenerateQuestionParams, type ExamQuestionRecord, type BatchQuestionItem
 } from '../api/services/knowledge';
 import { QuestionCard, type QuestionData } from '../components/chat/QuestionCard';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -204,7 +204,15 @@ function CountdownTimer({ seconds, onExpire }: { seconds: number; onExpire: () =
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function PracticePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [question, setQuestion] = useState<QuestionData | null>(null);
+
+  // Batch question pool
+  const [batchQuestions, setBatchQuestions] = useState<BatchQuestionItem[]>([]);
+  const [batchIndex, setBatchIndex] = useState(0);
+  const [batchLoading, setBatchLoading] = useState(false);
+  // Track answered state per question index
+  const [answeredMap, setAnsweredMap] = useState<Record<number, { isCorrect: boolean; selected: string }>>({});
   const [strategy, setStrategy] = useState('');
   const [strategyCode, setStrategyCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -212,6 +220,9 @@ export default function PracticePage() {
   const [streak, setStreak] = useState(0);
   const [showCelebrate, setShowCelebrate] = useState(false);
   const [showHint, setShowHint] = useState(true);
+  const [explanationLoading, setExplanationLoading] = useState(false);
+  const lastSubmitRef = useRef<{ stem: string; selected: string; correct: string } | null>(null);
+  const startTimeRef = useRef<number>(Date.now());
 
   // Exam mode
   const [examMode, setExamMode] = useState(false);
@@ -219,6 +230,7 @@ export default function PracticePage() {
   const [examAnswered, setExamAnswered] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [currentDomain, setCurrentDomain] = useState<string | undefined>();
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   // Timer
   const [timerSecs, setTimerSecs] = useState<number | null>(null);
@@ -257,15 +269,54 @@ export default function PracticePage() {
     });
   };
 
+  const showBatchQuestion = (items: BatchQuestionItem[], index: number) => {
+    const item = items[index];
+    if (!item) return;
+    setQuestion({ id: item.id, stem: item.stem, options: item.options, correctAnswer: item.correctAnswer, analysis: item.analysis });
+    setStrategy(item.strategyCode === 'OPENSAT' ? 'OpenSAT 真题' : '🤖 AI智能出题');
+    setStrategyCode(item.strategyCode);
+    setCurrentDomain(item.domain);
+    setBatchIndex(index);
+  };
+
   const handleGenerate = (params: GenerateQuestionParams & { examMode?: boolean; showHint?: boolean }, secs: number | null) => {
     setExamMode(!!params.examMode);
     setShowHint(params.showHint !== false);
     setExamRecords([]);
     setExamAnswered(false);
+    setAnsweredMap({});
     setTimerSecs(secs);
     setTimerKey(k => k + 1);
     setConfigured(true);
-    loadQuestion(params);
+    if (location.pathname === '/practice') {
+      navigate('/app/practice', { replace: true });
+    }
+
+    const isRW = params.subject === 'Reading & Writing';
+    const batchTotal = isRW ? 27 : 22;
+
+    setBatchLoading(true);
+    setBatchQuestions([]);
+    setBatchIndex(0);
+    setQuestion(null);
+    startTimeRef.current = Date.now();
+
+    generateBatchQuestions(params.subject, batchTotal)
+      .then(items => {
+        setBatchQuestions(items);
+        setBatchLoading(false);
+        if (items.length > 0) {
+          showBatchQuestion(items, 0);
+          setCurrentParams(params);
+        } else {
+          // fallback to single question
+          loadQuestion(params);
+        }
+      })
+      .catch(() => {
+        setBatchLoading(false);
+        loadQuestion(params);
+      });
   };
 
   const handleSubmit = async (isCorrect: boolean, selectedOption: string) => {
@@ -274,11 +325,15 @@ export default function PracticePage() {
       await submitExerciseResult({ studentId: 1, questionId: question.id, isCorrect, duration: 30 });
     } catch { /* ignore */ }
 
+    setAnsweredMap(prev => ({ ...prev, [batchIndex]: { isCorrect, selected: selectedOption } }));
+
     if (examMode) {
       const record: ExamQuestionRecord = { stem: question.stem, correctAnswer: question.correctAnswer, userAnswer: selectedOption, isCorrect, domain: currentDomain };
       setExamRecords(prev => [...prev, record]);
       setExamAnswered(true);
     }
+
+    lastSubmitRef.current = { stem: question.stem, selected: selectedOption, correct: question.correctAnswer };
 
     setStreak(prev => {
       const next = isCorrect ? prev + 1 : 0;
@@ -286,29 +341,47 @@ export default function PracticePage() {
       if (!isCorrect) setShowCelebrate(false);
       return next;
     });
+  };
 
-    if (!isCorrect && showHint) {
-      setQuestion(prev => prev ? { ...prev, analysis: '' } : null);
-      getAiExplanationStream(
-        question.stem, selectedOption, question.correctAnswer,
-        (chunk) => setQuestion(prev => prev ? { ...prev, analysis: (prev.analysis ?? '') + chunk } : null),
-        () => {},
-        () => setQuestion(prev => prev ? { ...prev, analysis: '❌ AI解析服务暂时繁忙，请重试。' } : null)
-      );
-    }
+  const handleRequestExplanation = () => {
+    const info = lastSubmitRef.current;
+    if (!info) return;
+    setExplanationLoading(true);
+    setQuestion(prev => prev ? { ...prev, analysis: '' } : null);
+    getAiExplanationStream(
+      info.stem, info.selected, info.correct,
+      (chunk) => setQuestion(prev => prev ? { ...prev, analysis: (prev.analysis ?? '') + chunk } : null),
+      () => setExplanationLoading(false),
+      () => {
+        setQuestion(prev => prev ? { ...prev, analysis: '❌ AI解析服务暂时繁忙，请重试。' } : null);
+        setExplanationLoading(false);
+      }
+    );
   };
 
   const handleFinishExam = async () => {
     setGeneratingReport(true);
+    const elapsedSecs = Math.round((Date.now() - startTimeRef.current) / 1000);
+    const answeredCount = Object.keys(answeredMap).length;
+    const correctCount = Object.values(answeredMap).filter(a => a.isCorrect).length;
     try {
       const subject = currentParams?.subject || 'Reading & Writing';
-      const report = await generateExamReport(examRecords, subject);
-      navigate('/exam-report', { state: { report } });
+      const records = batchQuestions.map((q, i) => {
+        const ans = answeredMap[i];
+        return {
+          stem: q.stem,
+          correctAnswer: q.correctAnswer,
+          userAnswer: ans?.selected || '(skipped)',
+          isCorrect: ans?.isCorrect || false,
+          domain: q.domain,
+        };
+      });
+      const report = await generateExamReport(records, subject);
+      navigate('/app/exam-report', { state: { report, elapsedSecs, answeredCount, correctCount, total: batchQuestions.length } });
     } catch { setGeneratingReport(false); }
   };
 
   const examDone = examMode && examRecords.length >= EXAM_TOTAL;
-  const examProgress = examMode ? examRecords.length / EXAM_TOTAL : 0;
 
   if (loading && !question) return <QuestionLoader />;
 
@@ -355,52 +428,87 @@ export default function PracticePage() {
         </div>
       </div>
 
-      {/* Exam progress bar */}
-      {examMode && (
-        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-          <motion.div className="h-full bg-gradient-to-r from-indigo-400 to-violet-400 rounded-full"
-            animate={{ width: `${examProgress * 100}%` }} transition={{ duration: 0.4 }} />
+      {/* Progress bar — batch questions */}
+      {batchQuestions.length > 0 && (
+        <div className="flex gap-1">
+          {batchQuestions.map((_, i) => {
+            const ans = answeredMap[i];
+            const isCurrent = i === batchIndex;
+            return (
+              <button key={i} onClick={() => showBatchQuestion(batchQuestions, i)}
+                className="flex-1 flex flex-col items-center gap-0.5 group">
+                <div className={`h-2 w-full rounded-full transition-all duration-300 ${
+                  !ans ? (isCurrent ? 'bg-indigo-300' : 'bg-slate-100') : ans.isCorrect ? 'bg-green-400' : 'bg-red-400'
+                }`} />
+                {ans && (
+                  <span className={`text-[10px] font-bold leading-none ${ans.isCorrect ? 'text-green-500' : 'text-red-500'}`}>
+                    {ans.isCorrect ? '✓' : '✗'}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
       {/* Question */}
-      {question && (
-        <QuestionCard question={question} onSubmit={handleSubmit} showHint={showHint} />
+      {(batchLoading && !question) ? <QuestionLoader /> : question && (
+        <QuestionCard key={question.id} question={question} onSubmit={handleSubmit} showHint={showHint} onRequestExplanation={handleRequestExplanation} explanationLoading={explanationLoading} />
       )}
 
-      {/* Action buttons */}
-      {question && (
-        <div className="flex justify-end gap-3 flex-wrap">
-          {examMode ? (
-            examDone ? (
-              <button onClick={handleFinishExam} disabled={generatingReport}
-                className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 shadow-lg disabled:opacity-60 transition-all">
-                {generatingReport
-                  ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Generating Report...</span>
-                  : '📊 View My Report'}
-              </button>
-            ) : (
-              examAnswered && (
-                <button onClick={() => loadQuestion()}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
-                  Next Question ({examRecords.length}/{EXAM_TOTAL})
-                </button>
-              )
-            )
+      {/* Navigation buttons */}
+      {question && batchQuestions.length > 0 && (
+        <div className="flex items-center justify-between gap-3">
+          <button
+            onClick={() => showBatchQuestion(batchQuestions, batchIndex - 1)}
+            disabled={batchIndex === 0}
+            className="px-5 py-2 bg-white text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            ← 上一题
+          </button>
+          <span className="text-sm text-slate-500">{batchIndex + 1} / {batchQuestions.length}</span>
+          {batchIndex < batchQuestions.length - 1 ? (
+            <button
+              onClick={() => showBatchQuestion(batchQuestions, batchIndex + 1)}
+              className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+            >
+              下一题 →
+            </button>
           ) : (
-            <>
-              {currentParams && (
-                <button onClick={() => { setCurrentParams(null); loadQuestion(); }}
-                  className="px-5 py-2 bg-white text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors text-sm">
-                  Switch to Auto Mode
-                </button>
-              )}
-              <button onClick={() => loadQuestion()}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
-                {currentParams ? 'Next Targeted Question' : 'Next Question'}
-              </button>
-            </>
+            <button
+              onClick={() => setShowSubmitConfirm(true)}
+              disabled={generatingReport}
+              className="px-5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 shadow-lg disabled:opacity-60 transition-all"
+            >
+              {generatingReport ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  生成报告中...
+                </span>
+              ) : '提交'}
+            </button>
           )}
+        </div>
+      )}
+
+      {showSubmitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+            <div className="px-6 py-5 border-b border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800">准备好提交了吗？</h3>
+              <p className="mt-2 text-sm text-slate-500">请仔细检查你的回答，一旦提交，即为最终回答，无法更改。</p>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4">
+              <button onClick={() => setShowSubmitConfirm(false)}
+                className="px-5 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                否，返回
+              </button>
+              <button onClick={() => { setShowSubmitConfirm(false); handleFinishExam(); }} disabled={generatingReport}
+                className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-60">
+                是，确认提交
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -2,12 +2,12 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BentoCard } from '../components/ui/BentoCard';
-import { 
-  BookX, Search, Filter, RefreshCw, CheckCircle, 
-  Clock, AlertTriangle, PieChart as PieChartIcon 
+import {
+  BookX, Search, Filter, RefreshCw, CheckCircle,
+  Clock, AlertTriangle, PieChart as PieChartIcon, CheckCheck
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { getMistakeList, getMistakeStats, type MistakeItem, type MistakeStats } from '../api/services/gamification';
+import { getMistakeList, getMistakeStats, resolveMistake, type MistakeItem, type MistakeStats } from '../api/services/gamification';
 import 'katex/dist/katex.min.css';
 import Latex from 'react-latex-next';
 
@@ -34,24 +34,35 @@ export default function WrongQuestionsPage() {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedKP, setSelectedKP] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'lastErrorTime' | 'errorCount'>('lastErrorTime');
+  const [resolvingId, setResolvingId] = useState<number | null>(null);
+
+  const userId = Number(localStorage.getItem('userId') || '1');
+
+  async function fetchData() {
+    try {
+      const [listData, statsData] = await Promise.all([
+        getMistakeList(userId, 1, 20, selectedKP || undefined, searchKeyword || undefined, sortBy),
+        getMistakeStats(userId)
+      ]);
+      setMistakes(listData.list);
+      setStats(statsData);
+    } catch (e) {
+      console.error("Failed to load mistakes", e);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [listData, statsData] = await Promise.all([
-          getMistakeList(1, 1, 20, selectedKP || undefined, searchKeyword || undefined),
-          getMistakeStats(1)
-        ]);
-        setMistakes(listData.list);
-        setStats(statsData);
-      } catch (e) {
-        console.error("Failed to load mistakes", e);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchData();
-  }, [selectedKP, searchKeyword]);
+  }, [selectedKP, searchKeyword, sortBy]);
+
+  const handleResolve = async (mistakeId: number) => {
+    setResolvingId(mistakeId);
+    await resolveMistake(mistakeId);
+    setResolvingId(null);
+    fetchData();
+  };
 
   const handlePractice = (questionId: number, kpId: number) => {
     navigate(`/practice?questionId=${questionId}&kp=${kpId}`);
@@ -170,18 +181,39 @@ export default function WrongQuestionsPage() {
                           ))}
                         </div>
                       )}
+
+                      {/* Correct Answer */}
+                      {mistake.correctAnswer && (
+                        <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                          <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                          <span className="text-sm text-green-700 font-medium">正确答案：</span>
+                          <span className="text-sm text-green-800"><Latex>{mistake.correctAnswer}</Latex></span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Action Button */}
-                    <motion.button
-                      onClick={() => handlePractice(mistake.questionId, mistake.knowledgePointId)}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all whitespace-nowrap"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                      再练一次
-                    </motion.button>
+                    {/* Action Buttons */}
+                    <div className="flex flex-col gap-2">
+                      <motion.button
+                        onClick={() => handlePractice(mistake.questionId, mistake.knowledgePointId)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all whitespace-nowrap"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        再练一次
+                      </motion.button>
+                      <motion.button
+                        onClick={() => handleResolve(mistake.id)}
+                        disabled={resolvingId === mistake.id}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all whitespace-nowrap disabled:opacity-60"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <CheckCheck className="h-4 w-4" />
+                        {resolvingId === mistake.id ? '处理中...' : '标记已掌握'}
+                      </motion.button>
+                    </div>
                   </div>
                 </motion.div>
               ))

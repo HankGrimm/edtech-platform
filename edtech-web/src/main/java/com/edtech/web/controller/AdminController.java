@@ -576,26 +576,37 @@ public class AdminController {
             @RequestParam(defaultValue = "operation") String type,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        
+
         Map<String, Object> response = new HashMap<>();
-        
+
+        // 用 student_exercise_log 作为操作日志数据源
+        Page<StudentExerciseLog> pageResult = studentExerciseLogMapper.selectPage(
+                new Page<>(page, size),
+                new LambdaQueryWrapper<StudentExerciseLog>()
+                        .orderByDesc(StudentExerciseLog::getSubmitTime));
+
         List<Map<String, Object>> logs = new ArrayList<>();
-        // 模拟日志数据
-        for (int i = 0; i < 10; i++) {
-            Map<String, Object> log = new HashMap<>();
-            log.put("id", i + 1);
-            log.put("type", type);
-            log.put("level", i % 4 == 0 ? "error" : (i % 3 == 0 ? "warning" : "info"));
-            log.put("message", type.equals("operation") ? "管理员操作记录 " + i : "系统错误日志 " + i);
-            log.put("user", "admin");
-            log.put("ip", "192.168.1." + (100 + i));
-            log.put("path", "/api/admin/test");
-            log.put("timestamp", LocalDateTime.now().minusMinutes(i * 15).toString().replace("T", " ").substring(0, 19));
-            logs.add(log);
+        for (StudentExerciseLog entry : pageResult.getRecords()) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", entry.getId());
+            item.put("type", "operation");
+            item.put("level", entry.getResult() != null && entry.getResult() == 1 ? "info" : "warning");
+            item.put("message", String.format("学生 %d %s题目 %d",
+                    entry.getStudentId(),
+                    entry.getResult() != null && entry.getResult() == 1 ? "答对" : "答错",
+                    entry.getQuestionId()));
+            item.put("user", "student:" + entry.getStudentId());
+            item.put("path", "/api/practice/submit");
+            String ts = entry.getSubmitTime() != null
+                    ? entry.getSubmitTime().toString().replace("T", " ")
+                    : "";
+            item.put("timestamp", ts.length() >= 19 ? ts.substring(0, 19) : ts);
+            logs.add(item);
         }
 
         response.put("success", true);
         response.put("data", logs);
+        response.put("total", pageResult.getTotal());
         return response;
     }
 }

@@ -1,22 +1,30 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, TrendingUp, AlertCircle, BookOpen, Target, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { Trophy, TrendingUp, AlertCircle, BookOpen, Target, ArrowLeft, CheckCircle, XCircle, Clock, BarChart2 } from 'lucide-react';
 import type { ExamReport } from '../api/services/knowledge';
 
 export default function ExamReportPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const report = location.state?.report as ExamReport | undefined;
+  const elapsedSecs: number = location.state?.elapsedSecs ?? 0;
+  const answeredCount: number = location.state?.answeredCount ?? 0;
+  const correctCount: number = location.state?.correctCount ?? 0;
+  const total: number = location.state?.total ?? 0;
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}分${String(s).padStart(2, '0')}秒`;
+  };
 
   if (!report) {
     return (
       <div className="max-w-2xl mx-auto py-20 text-center">
-        <p className="text-slate-500 mb-4">No report data found.</p>
-        <button
-          onClick={() => navigate('/practice')}
-          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-        >
-          Back to Practice
+        <p className="text-slate-500 mb-4">暂无报告数据。</p>
+        <button onClick={() => navigate('/app/practice')}
+          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+          返回练习
         </button>
       </div>
     );
@@ -24,21 +32,42 @@ export default function ExamReportPage() {
 
   const maxScore = 1600;
   const scorePercent = Math.round((report.total_score / maxScore) * 100);
+  const accuracy = answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 py-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate('/practice')}
-          className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
-        >
+        <button onClick={() => navigate('/app/practice')}
+          className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Exam Report</h2>
-          <p className="text-sm text-slate-500">AI-generated personalized analysis</p>
+          <h2 className="text-2xl font-bold text-slate-800">考试报告</h2>
+          <p className="text-sm text-slate-500">AI 个性化分析</p>
         </div>
+      </div>
+
+      {/* Stats row: time + answered + accuracy */}
+      <div className="grid grid-cols-3 gap-3">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col items-center gap-1">
+          <Clock className="w-5 h-5 text-indigo-400" />
+          <div className="text-xl font-bold text-slate-800">{formatTime(elapsedSecs)}</div>
+          <div className="text-xs text-slate-400">用时</div>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+          className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col items-center gap-1">
+          <BarChart2 className="w-5 h-5 text-violet-400" />
+          <div className="text-xl font-bold text-slate-800">{answeredCount} / {total}</div>
+          <div className="text-xs text-slate-400">已作答</div>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className={`rounded-2xl p-4 border shadow-sm flex flex-col items-center gap-1 ${accuracy >= 70 ? 'bg-green-50 border-green-200' : accuracy >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
+          <CheckCircle className={`w-5 h-5 ${accuracy >= 70 ? 'text-green-500' : accuracy >= 50 ? 'text-yellow-500' : 'text-red-400'}`} />
+          <div className="text-xl font-bold text-slate-800">{correctCount} / {answeredCount}</div>
+          <div className="text-xs text-slate-400">正确率 {accuracy}%</div>
+        </motion.div>
       </div>
 
       {/* Score Cards */}

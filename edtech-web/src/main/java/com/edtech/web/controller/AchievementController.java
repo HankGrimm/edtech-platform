@@ -20,15 +20,21 @@ public class AchievementController {
     private final UserAchievementMapper userAchievementMapper;
     private final UserPointsMapper userPointsMapper;
     private final UserMapper userMapper;
+    private final KnowledgeStateMapper knowledgeStateMapper;
+    private final KnowledgePointMapper knowledgePointMapper;
 
-    public AchievementController(AchievementMapper achievementMapper, 
+    public AchievementController(AchievementMapper achievementMapper,
                                   UserAchievementMapper userAchievementMapper,
-                                  UserPointsMapper userPointsMapper, 
-                                  UserMapper userMapper) {
+                                  UserPointsMapper userPointsMapper,
+                                  UserMapper userMapper,
+                                  KnowledgeStateMapper knowledgeStateMapper,
+                                  KnowledgePointMapper knowledgePointMapper) {
         this.achievementMapper = achievementMapper;
         this.userAchievementMapper = userAchievementMapper;
         this.userPointsMapper = userPointsMapper;
         this.userMapper = userMapper;
+        this.knowledgeStateMapper = knowledgeStateMapper;
+        this.knowledgePointMapper = knowledgePointMapper;
     }
 
     /**
@@ -107,28 +113,32 @@ public class AchievementController {
     }
 
     /**
-     * 获取掌握金牌列表(高掌握知识点)
+     * 获取掌握金牌列表(高掌握知识点) - 查 knowledge_state 表
      */
     @GetMapping("/mastery/{userId}")
     public List<Map<String, Object>> getMasteredKnowledgePoints(@PathVariable Long userId,
             @RequestParam(defaultValue = "0.8") double threshold) {
-        // This would query knowledge_state for high mastery points
-        // Simplified: return mock data
-        List<Map<String, Object>> mastered = new ArrayList<>();
-        Map<String, Object> m1 = new HashMap<>();
-        m1.put("knowledgePointId", 1);
-        m1.put("name", "函数与导数");
-        m1.put("mastery", 0.92);
-        m1.put("medal", "gold");
-        mastered.add(m1);
-        
-        Map<String, Object> m2 = new HashMap<>();
-        m2.put("knowledgePointId", 3);
-        m2.put("name", "数列");
-        m2.put("mastery", 0.88);
-        m2.put("medal", "gold");
-        mastered.add(m2);
-        
-        return mastered;
+        List<KnowledgeState> states = knowledgeStateMapper.selectList(
+                new LambdaQueryWrapper<KnowledgeState>()
+                        .eq(KnowledgeState::getStudentId, userId)
+                        .ge(KnowledgeState::getMasteryProbability, threshold)
+                        .orderByDesc(KnowledgeState::getMasteryProbability));
+
+        if (states.isEmpty()) return new ArrayList<>();
+
+        List<Long> kpIds = states.stream().map(KnowledgeState::getKnowledgePointId).collect(Collectors.toList());
+        List<KnowledgePoint> kps = knowledgePointMapper.selectBatchIds(kpIds);
+        Map<Long, String> kpNameMap = kps.stream()
+                .collect(Collectors.toMap(KnowledgePoint::getId, KnowledgePoint::getName));
+
+        return states.stream().map(state -> {
+            double val = state.getMasteryProbability().doubleValue();
+            Map<String, Object> item = new HashMap<>();
+            item.put("knowledgePointId", state.getKnowledgePointId());
+            item.put("name", kpNameMap.getOrDefault(state.getKnowledgePointId(), "未知"));
+            item.put("mastery", val);
+            item.put("medal", val >= 0.95 ? "gold" : val >= 0.85 ? "silver" : "bronze");
+            return item;
+        }).collect(Collectors.toList());
     }
 }
