@@ -48,22 +48,22 @@ public class OpenSatService {
         String url = BASE_URL + "?section=math&limit=" + limit;
         List<GeneratedQuestionVO> results = fetchFromOpenSat(url);
 
-        if (results.size() < limit) {
-            int needed = limit - results.size();
-            log.info("OpenSAT returned {} math questions, need {} more from Qwen fallback", results.size(), needed);
-            for (int i = 0; i < needed; i++) {
-                try {
-                    GeneratedQuestionVO fallback = contentGenerationService.generateRemedialQuestion(
-                            "Math", 0.5, "none", "none", 0, "Medium"
-                    );
-                    String existing = fallback.getAnalysis();
-                    fallback.setAnalysis("[AI生成] " + (existing != null ? existing : ""));
-                    results.add(fallback);
-                } catch (Exception e) {
-                    log.warn("Qwen fallback failed for math question #{}: {}", i + 1, e.getMessage());
-                }
-            }
-        }
+        // if (results.size() < limit) {
+        //     int needed = limit - results.size();
+        //     log.info("OpenSAT returned {} math questions, need {} more from Qwen fallback", results.size(), needed);
+        //     for (int i = 0; i < needed; i++) {
+        //         try {
+        //             GeneratedQuestionVO fallback = contentGenerationService.generateRemedialQuestion(
+        //                     "Math", 0.5, "none", "none", 0, "Medium"
+        //             );
+        //             String existing = fallback.getAnalysis();
+        //             fallback.setAnalysis("[AI生成] " + (existing != null ? existing : ""));
+        //             results.add(fallback);
+        //         } catch (Exception e) {
+        //             log.warn("Qwen fallback failed for math question #{}: {}", i + 1, e.getMessage());
+        //         }
+        //     }
+        // }
 
         return results;
     }

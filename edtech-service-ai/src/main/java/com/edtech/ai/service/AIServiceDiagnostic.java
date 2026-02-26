@@ -27,6 +27,9 @@ public class AIServiceDiagnostic {
     @Value("${spring.ai.openai.base-url:https://dashscope.aliyuncs.com/compatible-mode}")
     private String baseUrl;
 
+    @Value("${spring.ai.openai.chat.options.model:qwen-plus}")
+    private String model;
+
     public Map<String, Object> diagnoseAIService() {
         Map<String, Object> result = new HashMap<>();
         
@@ -73,14 +76,23 @@ public class AIServiceDiagnostic {
     }
 
     private String testSimpleAICall() {
-        String url = baseUrl + "/v1/chat/completions";
+        String normalizedBase = baseUrl != null ? baseUrl.trim() : "";
+        if (normalizedBase.endsWith("/")) {
+            normalizedBase = normalizedBase.substring(0, normalizedBase.length() - 1);
+        }
+        String url;
+        if (normalizedBase.contains("generativelanguage.googleapis.com") && normalizedBase.contains("/openai")) {
+            url = normalizedBase + "/chat/completions";
+        } else {
+            url = normalizedBase + "/v1/chat/completions";
+        }
         
         Map<String, Object> message = new HashMap<>();
         message.put("role", "user");
         message.put("content", "请回答：1+1等于几？只需要回答数字。");
 
         Map<String, Object> body = new HashMap<>();
-        body.put("model", "qwen-plus");
+        body.put("model", model);
         body.put("messages", List.of(message));
         body.put("temperature", 0.1);
         body.put("max_tokens", 10);
@@ -112,7 +124,16 @@ public class AIServiceDiagnostic {
     }
 
     public String testMathQuestionGeneration() {
-        String url = baseUrl + "/v1/chat/completions";
+        String normalizedBase = baseUrl != null ? baseUrl.trim() : "";
+        if (normalizedBase.endsWith("/")) {
+            normalizedBase = normalizedBase.substring(0, normalizedBase.length() - 1);
+        }
+        String url;
+        if (normalizedBase.contains("generativelanguage.googleapis.com") && normalizedBase.contains("/openai")) {
+            url = normalizedBase + "/chat/completions";
+        } else {
+            url = normalizedBase + "/v1/chat/completions";
+        }
         
         String prompt = """
                 请生成一道简单的数学选择题，输出JSON格式：
@@ -131,7 +152,7 @@ public class AIServiceDiagnostic {
         message.put("content", prompt);
 
         Map<String, Object> body = new HashMap<>();
-        body.put("model", "qwen-plus");
+        body.put("model", model);
         body.put("messages", List.of(message));
         body.put("temperature", 0.3);
         body.put("max_tokens", 500);

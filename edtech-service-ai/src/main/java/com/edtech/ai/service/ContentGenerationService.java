@@ -27,7 +27,8 @@ public class ContentGenerationService {
     @Value("${spring.ai.openai.base-url:https://dashscope.aliyuncs.com/compatible-mode}")
     private String baseUrl;
 
-    private static final String MODEL = "qwen-plus";
+    @Value("${spring.ai.openai.chat.options.model:qwen-plus}")
+    private String model;
 
     public GeneratedQuestionVO generateRemedialQuestion(String kpName, double probability, String commonMistakes, String lastWrong, long daysSinceReview, String difficultyOption) {
         log.info("🎯 AI动态出题: 知识点={}, 掌握度={}, 难度={}", kpName, probability, difficultyOption);
@@ -262,7 +263,16 @@ public class ContentGenerationService {
     }
 
     private String callQwen(String prompt) {
-        String url = baseUrl + "/v1/chat/completions";
+        String normalizedBase = baseUrl != null ? baseUrl.trim() : "";
+        if (normalizedBase.endsWith("/")) {
+            normalizedBase = normalizedBase.substring(0, normalizedBase.length() - 1);
+        }
+        String url;
+        if (normalizedBase.contains("generativelanguage.googleapis.com") && normalizedBase.contains("/openai")) {
+            url = normalizedBase + "/chat/completions";
+        } else {
+            url = normalizedBase + "/v1/chat/completions";
+        }
         
         if (apiKey == null || apiKey.isEmpty() || apiKey.startsWith("sk-请在")) {
             log.error("❌ API密钥未配置或无效: {}", apiKey);
@@ -274,7 +284,7 @@ public class ContentGenerationService {
         message.put("content", prompt);
 
         Map<String, Object> body = new HashMap<>();
-        body.put("model", MODEL);
+        body.put("model", model);
         body.put("messages", List.of(message));
         body.put("temperature", 0.7);
         body.put("max_tokens", 2000);
